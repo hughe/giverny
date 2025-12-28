@@ -1,9 +1,9 @@
-# Giverny Desgin
+# Giverny Design
 
 ## Introduction
 
-Giverny is a containerized system for fearlessly running Claude Code
-in.  It's a poor imitation of
+Giverny is a containerized system for fearlessly running Claude Code.
+It's a poor imitation of
 [sketch](https://github.com/boldsoftware/sketch "Sketch is an agentic
 coding tool"), but with Claude Code or possibly other CLI Coding
 Agents.
@@ -14,11 +14,11 @@ Agents.
 
 ```Giverny TASK-ID [PROMPT]```
 
-* `TASK-ID` is the id of a task to perform.  It might be a identifier
+* `TASK-ID` is the id of a task to perform.  It might be an identifier
   of a task in an issue tracker like
   [beads](https://github.com/steveyegge/beads "Beads is a distributed,
   git-backed graph issue tracker for AI agents.") (e.g., `giv-0f9`), or
-  it could be a identifier like `create-hello-world`.
+  it could be an identifier like `create-hello-world`.
   
 * `PROMPT` is a string prompt telling Claude Code what to do.  If it
   is not present then it should default to "Please work on TASK-ID."
@@ -34,6 +34,10 @@ Agents.
   
   + `Dockerfile.innie` builds the `giverny` binary.
 
+  + Note: We build in a separate container (`giverny-innie`) rather than
+    copying a host-built binary because Outie and Innie may run on different
+    architectures (e.g., macOS aarch64 vs Linux x86-64).
+
   + It hard links the `giverny` binary to `/output/giverny`.
   
   + Giverny runs `docker build -f Dockerfile.innie -t
@@ -43,7 +47,7 @@ Agents.
   
   + The temporary directory is removed.
   
-* Giverny starts a Dockerfile in a temporary directory.  We'll call this file `Dockerfile.main`.
+* Giverny creates a Dockerfile in a temporary directory.  We'll call this file `Dockerfile.main`.
 
   + The docker file starts with the `FROM giverny-innie:latest AS innie`.
   
@@ -65,7 +69,7 @@ Agents.
   + Giverny builds `Dockerfile.main` and tags it `giverny-main`.
   
 * Giverny starts a git server in the root of the checkout.
-   `git daemon --base-path=. --export-all --reuseaddr --verbose --listen=127.0.0.1 --port XXXX`
+   `git daemon --base-path=. --export-all --enable=receive-pack --reuseaddr --listen=127.0.0.1 --port XXXX`
    
    + `XXXX` is a random port in the range 2001-9999. If `git` exits
      with a code `128` and the message `fatal: unable to allocate any
@@ -83,17 +87,17 @@ Agents.
   + We should be able to specify arguments for creating the container
     using `--docker-args DOCKER-ARGS`.
 
-  + The port number for git `XXXX` is paseed to Innie with a flag. `--git-server-port`.
+  + The port number for git `XXXX` is passed to Innie with a flag. `--git-server-port`.
   
-  + Innie has a command line flag so it knows it is the Innie.  Maybe `--Innie`
+  + Innie has a command line flag so it knows it is the Innie.  Maybe `--innie`
   
   + The task id is passed to the Innie. `TASK-ID` 
   
-  + The prompt is prompt to the Innie. `PROMPT`.
+  + The prompt is passed to the Innie. `PROMPT`.
   
   + Innie command line `INNIE-COMMAND-LINE` looks like `/usr/local/bin/giverny --innie --git-server-port XXXX TASK-ID [PROMPT]`.
   
-  + The docker command will look something like `docker run -it -env CLAUDE_CODE_OAUTH_TOKEN  DOCKKER-ARGS CONTAINER-ID INNIE-COMMAND-LINE`
+  + The docker command will look something like `docker run -it --env CLAUDE_CODE_OAUTH_TOKEN DOCKER-ARGS CONTAINER-ID INNIE-COMMAND-LINE`
   
   + Outie should check that `CLAUDE_CODE_OAUTH_TOKEN` is configured and exit with an error if it is not.
   
@@ -101,12 +105,15 @@ Agents.
 
 * Innie clones the git repo from outside.  `git clone --no-checkout http://OUTER-HOST:XXXX/ /git`.
 
-  + Where outer host is the name of the host running Outie.  There
-    is a special docker hostname for this.
+  + Where outer host is the name of the host running Outie.  Use
+    `host.docker.internal` which Docker provides to reach the host
+    from inside a container.
 
 * Innie makes a directory `/app`.
 
 * Innie checks out the `giverny/TASK-ID` branch into `/app`.
+
+  + If git clone or branch checkout fails, Innie exits with a useful error message.
 
 * Innie creates, but does not checkout, another branch at the tip of
   `giverny/TASK-ID` that is called `giverny/START`.  This is just to
@@ -120,13 +127,13 @@ Agents.
   1. if the working directory is dirty, ask claude to commit it, non-interactively. 
   2. if the working directory is dirty, ask the user if they would like to commit manually.
   3. would the user like to restart claude.
-  4. would the user like to giverny.
+  4. would the user like to exit Giverny.
 
-  The user might be assked to hit:
+  The user might be asked to hit:
   
   + `c` to ask claude to commit.
   + `s` to start a shell and commit 
-  + `r` to rstart claude code.
+  + `r` to restart claude code.
   + `x` to exit.
   
   Options 1 and 2 would only be shown if the working directory is dirty.
@@ -160,22 +167,25 @@ Agents.
   >
   ```
 
-* When the claude process exits.  Innie checks to see if `/app` is
-  dirty (if there are any files that are not committed.  If it is it
-  prints something like "Working directory is dirty" to `stderr`. Then starts an
-  interactive `bash` in `/app`.
-  
-  + The user cleans up the files, commits if necessary.
-  
-  + The user exits bash.
-  
-  + Innie checks that directory is clean.  If it is not, it prints a the message again and starts `bash`.
-  
-* When the dirctory is clean, Innie pushs the branch to the git server.
+  + After [c] or [s], Innie checks if the directory is clean. If not,
+    it shows the menu again.
+
+  + [x] only exits if the directory is clean. If dirty, Innie warns
+    and shows the menu again.
+
+* When the directory is clean and the user chooses [x], Innie pushes the branch to the git server.
 
 * Innie exits with code 0.  This causes the container to stop.
 
 * Outie detects that the container has stopped because the `docker run ...` command exits.
+
+  + If the container exits with code 0, Outie removes the container.
+
+  + If the container crashes (non-zero exit), Outie does not remove the
+    container. A human can restart it and copy out any uncommitted work.
+    Outie prints an error message to stderr and exits with an error code.
+
+* Outie terminates the git server child process.
 
 * Outie prints to `stdout` a message that reads something like. 
 
@@ -183,7 +193,7 @@ Agents.
   Giverny has closed. 
 
   Merge changes:     git merge --ff-only giverny/TASK-ID
-  Delete the branch: git -d -f giverny/TASK-ID
+  Delete the branch: git branch -D giverny/TASK-ID
   ```
 
   Maybe a command to cherry pick, like sketch.
@@ -208,18 +218,17 @@ Must include:
 * Open port for diffreviewer if we need them with `docker`.  Currently
   using OrbStack so don't need to open ports.
   
-* Start a API server in Outie, pass the port to Innie.  Use this to
-  send comannds from Innie to Outie.
+* Start an API server in Outie, pass the port to Innie.  Use this to
+  send commands from Innie to Outie.
   
 * When the working directory is dirty Innie, after claude exits, could
   run `claude` in non-interactive mode, with a prompt asking claude to
   tidy up the working directory.
   
-* Build diffreviewer in it's own image and copy it into the
+* Build diffreviewer in its own image and copy it into the
   `giverny-main` image.
   
 * Install the `diffreviewer` skill in the `giverny-main` container.
 
+* Add CPU/memory limits for the container or Claude Code process.
 
-  
-  
