@@ -190,9 +190,7 @@ Agents.
 
 ## Tech 
 
-The backend is written in Go.
-
-Front end is written in HTML, Typescript and React.
+Giverny is written in go.
 
 ## The Docker Image
 
