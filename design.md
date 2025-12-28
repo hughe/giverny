@@ -79,6 +79,7 @@ Agents.
   the instance of Giverny running in the container as Innie.  The
   instance running on the outside is referred to as the Outie.
   
+  
   + We should be able to specify arguments for creating the container
     using `--docker-args DOCKER-ARGS`.
 
@@ -92,7 +93,9 @@ Agents.
   
   + Innie command line `INNIE-COMMAND-LINE` looks like `/usr/local/bin/giverny --innie --git-server-port XXXX TASK-ID [PROMPT]`.
   
-  + The docker command will look something like `docker run -it DOCKKER-ARGS CONTAINER-ID INNIE-COMMAND-LINE`
+  + The docker command will look something like `docker run -it -env CLAUDE_CODE_OAUTH_TOKEN  DOCKKER-ARGS CONTAINER-ID INNIE-COMMAND-LINE`
+  
+  + Outie should check that `CLAUDE_CODE_OAUTH_TOKEN` is configured and exit with an error if it is not.
   
 * Innie creates a directory for git `/git`.
 
