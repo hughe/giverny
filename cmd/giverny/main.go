@@ -18,6 +18,7 @@ type Config struct {
 	DockerArgs    string
 	IsInnie       bool
 	GitServerPort int
+	Debug         bool
 }
 
 func main() {
@@ -44,6 +45,7 @@ func parseArgs(flags *flag.FlagSet, args []string) Config {
 	flags.StringVar(&config.DockerArgs, "docker-args", "", "Additional docker run arguments")
 	flags.BoolVar(&config.IsInnie, "innie", false, "Flag indicating running inside container")
 	flags.IntVar(&config.GitServerPort, "git-server-port", 0, "Port for git daemon connection")
+	flags.BoolVar(&config.Debug, "debug", false, "Enable debug output")
 
 	// Custom usage message
 	flags.Usage = func() {
@@ -184,13 +186,15 @@ func runInnie(config Config) error {
 	}
 	fmt.Printf("Repository cloned successfully to /git\n")
 
-	// List /git directory contents to verify clone
-	fmt.Printf("\nContents of /git:\n")
-	cmd := exec.Command("ls", "-la", "/git")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to list /git directory: %v\n", err)
+	// List /git directory contents to verify clone (debug mode only)
+	if config.Debug {
+		fmt.Printf("\nContents of /git:\n")
+		cmd := exec.Command("ls", "-la", "/git")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to list /git directory: %v\n", err)
+		}
 	}
 
 	return nil
