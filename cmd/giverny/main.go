@@ -128,6 +128,19 @@ func runOutie(config Config) error {
 	}
 	fmt.Printf("Created branch: %s\n", branchName)
 
+	// Start git server
+	serverCmd, gitPort, err := git.StartServer(projectRoot)
+	if err != nil {
+		return fmt.Errorf("failed to start git server: %w", err)
+	}
+	// Ensure server is stopped on exit
+	defer func() {
+		if err := git.StopServer(serverCmd); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to stop git server: %v\n", err)
+		}
+	}()
+	fmt.Printf("Started git server on port: %d\n", gitPort)
+
 	// Build giverny-innie Docker image
 	if err := docker.BuildInnieImage(); err != nil {
 		return fmt.Errorf("failed to build innie image: %w", err)
