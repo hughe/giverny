@@ -157,6 +157,17 @@ func runOutie(config Config) error {
 	if config.DockerArgs != "" {
 		fmt.Printf("Docker args: %s\n", config.DockerArgs)
 	}
+
+	// Run the container with Innie
+	exitCode, err := docker.RunContainer(config.TaskID, config.Prompt, gitPort, config.DockerArgs)
+	if err != nil {
+		return fmt.Errorf("container failed: %w", err)
+	}
+
+	if exitCode != 0 {
+		return fmt.Errorf("container exited with code %d", exitCode)
+	}
+
 	return nil
 }
 
