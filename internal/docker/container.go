@@ -23,7 +23,7 @@ func RunContainer(taskID, prompt string, gitPort int, dockerArgs string) (int, e
 	args := []string{
 		"run",
 		"--name", containerName,
-		"-e", fmt.Sprintf("CLAUDE_CODE_OAUTH_TOKEN=%s", token),
+		"--env", "CLAUDE_CODE_OAUTH_TOKEN",
 	}
 
 	// Add any additional docker args
@@ -51,6 +51,8 @@ func RunContainer(taskID, prompt string, gitPort int, dockerArgs string) (int, e
 	cmd.Stdin = os.Stdin
 
 	fmt.Printf("Starting container %s for task %s...\n", containerName, taskID)
+	fmt.Printf("To start a shell in the container, run:\n")
+	fmt.Printf("  docker exec -it %s /bin/sh\n\n", containerName)
 
 	exitCode := 0
 	if err := cmd.Run(); err != nil {
@@ -70,6 +72,8 @@ func RunContainer(taskID, prompt string, gitPort int, dockerArgs string) (int, e
 		}
 	} else {
 		fmt.Printf("Container exited with code %d, leaving container for inspection\n", exitCode)
+		fmt.Printf("\nTo restart the container, run:\n")
+		fmt.Printf("  docker start -ai %s\n", containerName)
 	}
 
 	return exitCode, nil
