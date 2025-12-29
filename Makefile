@@ -1,8 +1,9 @@
-.PHONY: build clean test run install
+.PHONY: build clean test test-with-env test-binary run install
 
 # Binary name
 BINARY_NAME=giverny
 BUILD_DIR=build
+TEST_ENV_DIR?=/tmp/giverny-test-env-$$$$
 
 # Build the project
 build:
@@ -20,6 +21,28 @@ clean:
 test:
 	@echo "Running tests..."
 	go test -v ./...
+
+# Run tests with environment setup and teardown
+test-with-env:
+	@echo "Setting up test environment..."
+	@export TEST_ENV_DIR=$(TEST_ENV_DIR) && \
+	./scripts/setup-test-env.sh && \
+	(go test -v ./...; TEST_RESULT=$$?; \
+	./scripts/teardown-test-env.sh; \
+	exit $$TEST_RESULT)
+
+# Test the giverny binary
+test-binary: build
+	@echo "Testing giverny binary..."
+	@export TEST_ENV_DIR=$(TEST_ENV_DIR) && \
+	./scripts/setup-test-env.sh && \
+	(cd $$TEST_ENV_DIR && \
+	$(CURDIR)/$(BUILD_DIR)/$(BINARY_NAME) --help > /dev/null && \
+	echo "Binary test: help command OK"; \
+	TEST_RESULT=$$?; \
+	cd $(CURDIR) && \
+	./scripts/teardown-test-env.sh; \
+	exit $$TEST_RESULT)
 
 # Run the application
 run: build
@@ -43,11 +66,13 @@ lint:
 # Show help
 help:
 	@echo "Available targets:"
-	@echo "  build   - Build the binary"
-	@echo "  clean   - Remove build artifacts"
-	@echo "  test    - Run tests"
-	@echo "  run     - Build and run the application"
-	@echo "  install - Install to GOPATH/bin"
-	@echo "  fmt     - Format code"
-	@echo "  lint    - Run linter"
-	@echo "  help    - Show this help message"
+	@echo "  build          - Build the binary"
+	@echo "  clean          - Remove build artifacts"
+	@echo "  test           - Run tests"
+	@echo "  test-with-env  - Run tests with environment setup/teardown"
+	@echo "  test-binary    - Test the giverny binary"
+	@echo "  run            - Build and run the application"
+	@echo "  install        - Install to GOPATH/bin"
+	@echo "  fmt            - Format code"
+	@echo "  lint           - Run linter"
+	@echo "  help           - Show this help message"

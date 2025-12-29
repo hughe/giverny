@@ -44,6 +44,26 @@ giverny TASK-ID [PROMPT]
 - `--docker-args DOCKER-ARGS`: Additional docker run arguments
 - `--innie`: Flag indicating running inside container
 - `--git-server-port XXXX`: Port for git daemon connection
+- `--debug`: Enable debug output
+- `--show-build-output`: Show docker build output
+
+## Testing
+
+The project includes several Makefile targets for testing:
+
+```bash
+make test            # Run unit tests
+make test-with-env   # Run tests with environment setup/teardown in /tmp/
+make test-binary     # Test the giverny binary
+```
+
+The `test-with-env` and `test-binary` targets automatically:
+1. Set up a test environment in `/tmp/giverny-test-env-*`
+2. Initialize a git repository for testing
+3. Run the tests or binary
+4. Clean up the test environment
+
+Use these targets when you need an isolated test environment.
 
 ## Behavior
 
