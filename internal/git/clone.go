@@ -1,0 +1,41 @@
+package git
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+)
+
+// CloneRepo clones a repository from the git server into /git directory.
+// Uses --no-checkout to create a bare-like clone that can be checked out later.
+// Returns an error if the clone fails.
+func CloneRepo(gitServerPort int) error {
+	// Create /git directory
+	gitDir := "/git"
+	if err := os.MkdirAll(gitDir, 0755); err != nil {
+		return fmt.Errorf("failed to create %s directory: %w", gitDir, err)
+	}
+
+	// Clone from host.docker.internal
+	// Docker provides host.docker.internal as a special DNS name that resolves to the host
+	repoURL := fmt.Sprintf("git://host.docker.internal:%d/", gitServerPort)
+
+	// Run git clone with --no-checkout
+	cmd := exec.Command("git", "clone", "--no-checkout", repoURL, gitDir)
+	output, err := cmd.CombinedOutput()
+
+	if err != nil {
+		// Provide useful error message
+		outputStr := strings.TrimSpace(string(output))
+		if strings.Contains(outputStr, "Connection refused") {
+			return fmt.Errorf("failed to connect to git server at %s\nIs the git server running on the host?\nError: %s", repoURL, outputStr)
+		}
+		if strings.Contains(outputStr, "does not appear to be a git repository") {
+			return fmt.Errorf("git server at %s does not appear to be serving a valid repository\nError: %s", repoURL, outputStr)
+		}
+		return fmt.Errorf("failed to clone repository from %s: %s", repoURL, outputStr)
+	}
+
+	return nil
+}

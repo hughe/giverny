@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"giverny/internal/docker"
@@ -175,5 +176,22 @@ func runInnie(config Config) error {
 	fmt.Printf("Running Innie for task: %s\n", config.TaskID)
 	fmt.Printf("Prompt: %s\n", config.Prompt)
 	fmt.Printf("Git server port: %d\n", config.GitServerPort)
+
+	// Clone the repository from Outie's git server
+	fmt.Printf("Cloning repository from git server...\n")
+	if err := git.CloneRepo(config.GitServerPort); err != nil {
+		return fmt.Errorf("failed to clone repository: %w", err)
+	}
+	fmt.Printf("Repository cloned successfully to /git\n")
+
+	// List /git directory contents to verify clone
+	fmt.Printf("\nContents of /git:\n")
+	cmd := exec.Command("ls", "-la", "/git")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to list /git directory: %v\n", err)
+	}
+
 	return nil
 }

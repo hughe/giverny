@@ -41,7 +41,7 @@ func TestRunOutie_ValidatesClaudeToken(t *testing.T) {
 			config := Config{
 				TaskID:    "test-task",
 				Prompt:    "test prompt",
-				BaseImage: "test:latest",
+				BaseImage: "debian:stable",
 			}
 
 			err := runOutie(config)
