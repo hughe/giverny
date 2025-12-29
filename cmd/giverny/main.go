@@ -12,13 +12,14 @@ import (
 )
 
 type Config struct {
-	TaskID        string
-	Prompt        string
-	BaseImage     string
-	DockerArgs    string
-	IsInnie       bool
-	GitServerPort int
-	Debug         bool
+	TaskID          string
+	Prompt          string
+	BaseImage       string
+	DockerArgs      string
+	IsInnie         bool
+	GitServerPort   int
+	Debug           bool
+	ShowBuildOutput bool
 }
 
 func main() {
@@ -46,6 +47,7 @@ func parseArgs(flags *flag.FlagSet, args []string) Config {
 	flags.BoolVar(&config.IsInnie, "innie", false, "Flag indicating running inside container")
 	flags.IntVar(&config.GitServerPort, "git-server-port", 0, "Port for git daemon connection")
 	flags.BoolVar(&config.Debug, "debug", false, "Enable debug output")
+	flags.BoolVar(&config.ShowBuildOutput, "show-build-output", false, "Show docker build output")
 
 	// Custom usage message
 	flags.Usage = func() {
@@ -145,12 +147,12 @@ func runOutie(config Config) error {
 	fmt.Printf("Started git server on port: %d\n", gitPort)
 
 	// Build giverny-innie Docker image
-	if err := docker.BuildInnieImage(); err != nil {
+	if err := docker.BuildInnieImage(config.ShowBuildOutput); err != nil {
 		return fmt.Errorf("failed to build innie image: %w", err)
 	}
 
 	// Build giverny-main Docker image
-	if err := docker.BuildMainImage(config.BaseImage); err != nil {
+	if err := docker.BuildMainImage(config.BaseImage, config.ShowBuildOutput); err != nil {
 		return fmt.Errorf("failed to build main image: %w", err)
 	}
 
@@ -162,7 +164,7 @@ func runOutie(config Config) error {
 	}
 
 	// Run the container with Innie
-	exitCode, err := docker.RunContainer(config.TaskID, config.Prompt, gitPort, config.DockerArgs)
+	exitCode, err := docker.RunContainer(config.TaskID, config.Prompt, gitPort, config.DockerArgs, config.Debug)
 	if err != nil {
 		return fmt.Errorf("container failed: %w", err)
 	}

@@ -42,8 +42,8 @@ type MainDockerfileData struct {
 
 // BuildMainImage builds the giverny-main Docker image.
 // It creates a temporary directory, generates the Dockerfile, builds the image,
-// streams output to stdout, and cleans up.
-func BuildMainImage(baseImage string) error {
+// optionally streams output to stdout based on showOutput, and cleans up.
+func BuildMainImage(baseImage string, showOutput bool) error {
 	// Create temporary directory
 	tmpDir, err := os.MkdirTemp("", "giverny-main-*")
 	if err != nil {
@@ -68,9 +68,11 @@ func BuildMainImage(baseImage string) error {
 		tmpDir,
 	)
 
-	// Stream output to stdout/stderr
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	// Conditionally stream output to stdout/stderr
+	if showOutput {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("docker build failed: %w", err)

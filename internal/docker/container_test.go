@@ -16,7 +16,7 @@ func TestRunContainer_RequiresToken(t *testing.T) {
 	}()
 
 	// Should fail without token
-	_, err := RunContainer("test-task", "test prompt", 9999, "")
+	_, err := RunContainer("test-task", "test prompt", 9999, "", false)
 	if err == nil {
 		t.Error("expected error when CLAUDE_CODE_OAUTH_TOKEN is not set")
 	}

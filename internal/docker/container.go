@@ -9,7 +9,7 @@ import (
 
 // RunContainer starts the giverny-main container with Innie
 // Returns the exit code of the container
-func RunContainer(taskID, prompt string, gitPort int, dockerArgs string) (int, error) {
+func RunContainer(taskID, prompt string, gitPort int, dockerArgs string, debug bool) (int, error) {
 	// Get the OAuth token
 	token := os.Getenv("CLAUDE_CODE_OAUTH_TOKEN")
 	if token == "" {
@@ -37,13 +37,14 @@ func RunContainer(taskID, prompt string, gitPort int, dockerArgs string) (int, e
 	args = append(args, "giverny-main:latest")
 
 	// Specify the command to run inside the container
-	args = append(args,
-		"giverny",
-		"--innie",
-		fmt.Sprintf("--git-server-port=%d", gitPort),
-		taskID,
-		prompt,
-	)
+	args = append(args, "giverny", "--innie", fmt.Sprintf("--git-server-port=%d", gitPort))
+
+	// Add debug flag if enabled
+	if debug {
+		args = append(args, "--debug")
+	}
+
+	args = append(args, taskID, prompt)
 
 	cmd := exec.Command("docker", args...)
 	cmd.Stdout = os.Stdout

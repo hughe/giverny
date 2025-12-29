@@ -29,8 +29,8 @@ RUN test -f /output/giverny && chmod +x /output/giverny
 
 // BuildInnieImage builds the giverny-innie Docker image.
 // It creates a temporary directory, generates the Dockerfile, builds the image,
-// streams output to stdout, and cleans up.
-func BuildInnieImage() error {
+// optionally streams output to stdout based on showOutput, and cleans up.
+func BuildInnieImage(showOutput bool) error {
 	// Create temporary directory
 	tmpDir, err := os.MkdirTemp("", "giverny-innie-*")
 	if err != nil {
@@ -59,9 +59,11 @@ func BuildInnieImage() error {
 		projectRoot,
 	)
 
-	// Stream output to stdout/stderr
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	// Conditionally stream output to stdout/stderr
+	if showOutput {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("docker build failed: %w", err)
