@@ -52,10 +52,11 @@ giverny TASK-ID [PROMPT]
 The project includes several Makefile targets for testing:
 
 ```bash
-make test            # Run unit tests
 make test-with-env   # Run tests with environment setup/teardown in /tmp/
 make test-binary     # Test the giverny binary
 ```
+
+**IMPORTANT:** *Always* run tests with `make test-with-env`.  *Always* test the binary using `make test-binary`.
 
 The `test-with-env` and `test-binary` targets automatically:
 1. Set up a test environment in `/tmp/giverny-test-env-*`
@@ -64,6 +65,27 @@ The `test-with-env` and `test-binary` targets automatically:
 4. Clean up the test environment
 
 Use these targets when you need an isolated test environment.
+
+### Test Package Structure
+
+**IMPORTANT:** Each test package must include a `TestMain()` function that:
+- Checks for the `GIV_TEST_ENV_DIR` environment variable
+- Changes to that directory if set
+- Calls `m.Run()` to execute the tests
+
+Example:
+```go
+func TestMain(m *testing.M) {
+	// Check if GIV_TEST_ENV_DIR is set and change to that directory
+	if testEnvDir := os.Getenv("GIV_TEST_ENV_DIR"); testEnvDir != "" {
+		if err := os.Chdir(testEnvDir); err != nil {
+			panic("failed to change to test environment directory: " + err.Error())
+		}
+	}
+
+	m.Run()
+}
+```
 
 ## Behavior
 

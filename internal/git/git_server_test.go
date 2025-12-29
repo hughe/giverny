@@ -9,6 +9,17 @@ import (
 	"time"
 )
 
+func TestMain(m *testing.M) {
+	// Check if GIV_TEST_ENV_DIR is set and change to that directory
+	if testEnvDir := os.Getenv("GIV_TEST_ENV_DIR"); testEnvDir != "" {
+		if err := os.Chdir(testEnvDir); err != nil {
+			panic("failed to change to test environment directory: " + err.Error())
+		}
+	}
+
+	m.Run()
+}
+
 func TestStartServer(t *testing.T) {
 	// Create a temporary git repository for testing
 	tmpDir, err := os.MkdirTemp("", "giverny-git-server-test-*")

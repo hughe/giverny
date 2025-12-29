@@ -3,7 +3,11 @@
 # Binary name
 BINARY_NAME=giverny
 BUILD_DIR=build
-TEST_ENV_DIR?=/tmp/giverny-test-env-$$$$
+
+# Test environment directory - defaults to unique temp dir if not already set
+# Use ?= to allow override via environment variable or command line
+# $$$$ expands to process ID for uniqueness
+GIV_TEST_ENV_DIR?=/tmp/giverny-test-env-$$$$
 
 # Build the project
 build:
@@ -17,26 +21,22 @@ clean:
 	@rm -rf $(BUILD_DIR)
 	@go clean
 
-# Run tests
-test:
-	@echo "Running tests..."
-	go test -v ./...
-
 # Run tests with environment setup and teardown
+# Pass additional arguments via GO_TEST_ARGS env var
 test-with-env:
 	@echo "Setting up test environment..."
-	@export TEST_ENV_DIR=$(TEST_ENV_DIR) && \
+	@export GIV_TEST_ENV_DIR=$(GIV_TEST_ENV_DIR) && \
 	./scripts/setup-test-env.sh && \
-	(go test -v ./...; TEST_RESULT=$$?; \
+	(GIV_TEST_ENV_DIR=$$GIV_TEST_ENV_DIR go test -v $(GO_TEST_ARGS) ./...; TEST_RESULT=$$?; \
 	./scripts/teardown-test-env.sh; \
 	exit $$TEST_RESULT)
 
 # Test the giverny binary
 test-binary: build
 	@echo "Testing giverny binary..."
-	@export TEST_ENV_DIR=$(TEST_ENV_DIR) && \
+	@export GIV_TEST_ENV_DIR=$(GIV_TEST_ENV_DIR) && \
 	./scripts/setup-test-env.sh && \
-	(cd $$TEST_ENV_DIR && \
+	(cd $$GIV_TEST_ENV_DIR && \
 	$(CURDIR)/$(BUILD_DIR)/$(BINARY_NAME) --help > /dev/null && \
 	echo "Binary test: help command OK"; \
 	TEST_RESULT=$$?; \
@@ -68,7 +68,6 @@ help:
 	@echo "Available targets:"
 	@echo "  build          - Build the binary"
 	@echo "  clean          - Remove build artifacts"
-	@echo "  test           - Run tests"
 	@echo "  test-with-env  - Run tests with environment setup/teardown"
 	@echo "  test-binary    - Test the giverny binary"
 	@echo "  run            - Build and run the application"

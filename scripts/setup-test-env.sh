@@ -4,16 +4,16 @@
 set -e
 
 # Create test environment directory
-TEST_ENV_DIR="${TEST_ENV_DIR:-/tmp/giverny-test-env-$$}"
-export TEST_ENV_DIR
+GIV_TEST_ENV_DIR="${GIV_TEST_ENV_DIR:-/tmp/giverny-test-env-$$}"
+export GIV_TEST_ENV_DIR
 
-echo "Setting up test environment in: $TEST_ENV_DIR"
+echo "Setting up test environment in: $GIV_TEST_ENV_DIR"
 
 # Create directory structure
-mkdir -p "$TEST_ENV_DIR"
+mkdir -p "$GIV_TEST_ENV_DIR"
 
 # Initialize a git repository for testing
-cd "$TEST_ENV_DIR"
+cd "$GIV_TEST_ENV_DIR"
 git init
 git config user.email "test@giverny.test"
 git config user.name "Giverny Test"
@@ -24,4 +24,4 @@ git add README.md
 git commit -m "Initial commit"
 
 echo "Test environment setup complete"
-echo "TEST_ENV_DIR=$TEST_ENV_DIR"
+echo "GIV_TEST_ENV_DIR=$GIV_TEST_ENV_DIR"
