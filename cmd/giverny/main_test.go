@@ -3,10 +3,17 @@ package main
 import (
 	"flag"
 	"os"
+	"os/exec"
 	"testing"
 )
 
 func TestRunOutie_ValidatesClaudeToken(t *testing.T) {
+	// Clean up test branch after all tests complete
+	defer func() {
+		cmd := exec.Command("git", "branch", "-D", "giverny/test-task")
+		cmd.Run() // Ignore errors - branch may not exist
+	}()
+
 	tests := []struct {
 		name        string
 		tokenValue  string
