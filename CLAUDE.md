@@ -64,6 +64,12 @@ bd close <id>         # Complete work
 bd sync               # Sync with git
 ```
 
+When you commit some changes.  Please add the IDs of the tasks that were closed to the commit message.  E.g., 
+
+```
+Closes: bd-123, bd-abc
+```
+
 ## Landing the Plane (Session Completion)
 
 **When ending a work session**, you MUST complete ALL steps below. 

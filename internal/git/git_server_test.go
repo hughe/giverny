@@ -41,25 +41,29 @@ func TestStartServer(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to start server: %v", err)
 		}
-		defer StopServer(serverCmd)
+		t.Cleanup(func() {
+			if err := StopServer(serverCmd); err != nil {
+				t.Errorf("failed to stop server: %v", err)
+			}
+		})
 
 		// Verify port is in valid range
 		if port < minPort || port > maxPort {
 			t.Errorf("port %d is outside valid range %d-%d", port, minPort, maxPort)
 		}
 
-		// Verify process is running
-		if serverCmd.Process == nil {
-			t.Error("server process is nil")
+		// Verify actual process is running
+		if serverCmd.ActualPid <= 0 {
+			t.Error("server actual PID is invalid")
 		}
 
 		// Give it a moment to ensure it stays running
 		time.Sleep(200 * time.Millisecond)
 
 		// Check if process is still alive using ps command
-		cmd := exec.Command("ps", "-p", fmt.Sprintf("%d", serverCmd.Process.Pid))
+		cmd := exec.Command("ps", "-p", fmt.Sprintf("%d", serverCmd.ActualPid))
 		if err := cmd.Run(); err != nil {
-			t.Errorf("server process is not running (pid %d)", serverCmd.Process.Pid)
+			t.Errorf("server process is not running (pid %d)", serverCmd.ActualPid)
 		}
 	})
 
@@ -69,6 +73,7 @@ func TestStartServer(t *testing.T) {
 			t.Fatalf("failed to start server: %v", err)
 		}
 
+		actualPid := serverCmd.ActualPid
 		err = StopServer(serverCmd)
 		if err != nil {
 			t.Errorf("failed to stop server: %v", err)
@@ -78,7 +83,7 @@ func TestStartServer(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 
 		// Verify process is stopped using ps command
-		cmd := exec.Command("ps", "-p", fmt.Sprintf("%d", serverCmd.Process.Pid))
+		cmd := exec.Command("ps", "-p", fmt.Sprintf("%d", actualPid))
 		if err := cmd.Run(); err == nil {
 			t.Error("server process is still running after stop")
 		}
