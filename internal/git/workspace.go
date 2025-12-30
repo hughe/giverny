@@ -52,7 +52,9 @@ func PushBranch(branchName string, gitServerPort int) error {
 	fmt.Printf("Pushing %s to git server...\n", branchName)
 
 	// Construct the git server URL
-	gitServerURL := fmt.Sprintf("git://host.docker.internal:%d/git", gitServerPort)
+	// When git daemon serves with --base-path pointing to a repo,
+	// we reference it with / (empty path after host:port)
+	gitServerURL := fmt.Sprintf("git://host.docker.internal:%d/", gitServerPort)
 
 	// Push the branch
 	cmd := exec.Command("git", "push", gitServerURL, branchName)
