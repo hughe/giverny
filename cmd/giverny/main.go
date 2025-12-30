@@ -258,7 +258,7 @@ func executeClaude(prompt string, interactive bool) error {
 		fmt.Printf("Executing Claude Code in non-interactive mode...\n")
 	}
 
-	args := []string{"--dangerously-skip-permissions"}
+	args := []string{"--dangerously-skip-permissions", "--allow-dangerously-skip-permissions"}
 	if !interactive {
 		args = append(args, "--print")
 	}
