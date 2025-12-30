@@ -7,9 +7,15 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"giverny"
 	"giverny/internal/docker"
 	"giverny/internal/git"
 )
+
+func init() {
+	// Initialize the embedded source for the docker package
+	docker.EmbeddedSource = giverny.Source
+}
 
 type Config struct {
 	TaskID          string
