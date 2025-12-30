@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"giverny/internal/git"
 )
 
 func TestMain(m *testing.M) {
@@ -194,9 +196,9 @@ func TestIsWorkspaceDirty_CleanWorkspace(t *testing.T) {
 
 	os.Chdir(tmpDir)
 
-	dirty, err := isWorkspaceDirty()
+	dirty, err := git.IsWorkspaceDirty()
 	if err != nil {
-		t.Errorf("isWorkspaceDirty failed: %v", err)
+		t.Errorf("IsWorkspaceDirty failed: %v", err)
 	}
 
 	if dirty {
@@ -242,9 +244,9 @@ func TestIsWorkspaceDirty_DirtyWorkspace(t *testing.T) {
 
 	os.Chdir(tmpDir)
 
-	dirty, err := isWorkspaceDirty()
+	dirty, err := git.IsWorkspaceDirty()
 	if err != nil {
-		t.Errorf("isWorkspaceDirty failed: %v", err)
+		t.Errorf("IsWorkspaceDirty failed: %v", err)
 	}
 
 	if !dirty {

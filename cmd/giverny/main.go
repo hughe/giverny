@@ -228,7 +228,7 @@ func runInnie(config Config) error {
 
 	// Set up workspace in /app
 	branchName := fmt.Sprintf("giverny/%s", config.TaskID)
-	if err := setupWorkspace(branchName); err != nil {
+	if err := git.SetupWorkspace(branchName); err != nil {
 		return fmt.Errorf("failed to setup workspace: %w", err)
 	}
 
@@ -243,36 +243,9 @@ func runInnie(config Config) error {
 	}
 
 	// Push branch and exit
-	if err := pushBranchAndExit(branchName, config.GitServerPort); err != nil {
+	if err := git.PushBranch(branchName, config.GitServerPort); err != nil {
 		return fmt.Errorf("failed to push branch: %w", err)
 	}
-
-	return nil
-}
-
-// setupWorkspace creates /app, checks out the branch, and creates a START label
-func setupWorkspace(branchName string) error {
-	// Create /app directory
-	if err := os.MkdirAll("/app", 0755); err != nil {
-		return fmt.Errorf("failed to create /app directory: %w", err)
-	}
-
-	// Checkout the branch to /app using git worktree
-	cmd := exec.Command("git", "-C", "/git", "worktree", "add", "/app", branchName)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to checkout branch %s to /app: %w", branchName, err)
-	}
-	fmt.Printf("Checked out branch %s to /app\n", branchName)
-
-	// Create giverny/START label branch to mark where we started
-	startLabel := branchName + "/START"
-	cmd = exec.Command("git", "-C", "/app", "branch", startLabel)
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to create START label branch %s: %w", startLabel, err)
-	}
-	fmt.Printf("Created START label: %s\n", startLabel)
 
 	return nil
 }
@@ -301,7 +274,7 @@ func postClaudeMenu() error {
 
 	for {
 		// Check if there are uncommitted changes
-		dirty, err := isWorkspaceDirty()
+		dirty, err := git.IsWorkspaceDirty()
 		if err != nil {
 			return fmt.Errorf("failed to check workspace status: %w", err)
 		}
@@ -346,20 +319,6 @@ func postClaudeMenu() error {
 			fmt.Println("Invalid choice. Please enter c, s, r, or x.")
 		}
 	}
-}
-
-// isWorkspaceDirty checks if there are uncommitted changes in /app
-func isWorkspaceDirty() (bool, error) {
-	cmd := exec.Command("git", "status", "--porcelain")
-	// Use /app if it exists, otherwise use current directory (for testing)
-	if _, err := os.Stat("/app"); err == nil {
-		cmd.Dir = "/app"
-	}
-	output, err := cmd.Output()
-	if err != nil {
-		return false, err
-	}
-	return len(output) > 0, nil
 }
 
 // commitChanges commits all changes in /app
@@ -407,26 +366,5 @@ func startShell() error {
 		return fmt.Errorf("shell exited with error: %w", err)
 	}
 
-	return nil
-}
-
-// pushBranchAndExit pushes the branch to the git server and exits cleanly
-func pushBranchAndExit(branchName string, gitServerPort int) error {
-	fmt.Printf("Pushing %s to git server...\n", branchName)
-
-	// Construct the git server URL
-	gitServerURL := fmt.Sprintf("git://host.docker.internal:%d/git", gitServerPort)
-
-	// Push the branch
-	cmd := exec.Command("git", "push", gitServerURL, branchName)
-	cmd.Dir = "/app"
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("git push failed: %w", err)
-	}
-
-	fmt.Printf("✓ Successfully pushed %s\n", branchName)
 	return nil
 }
