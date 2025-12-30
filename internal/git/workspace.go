@@ -22,8 +22,8 @@ func SetupWorkspace(branchName string) error {
 	}
 	fmt.Printf("Checked out branch %s to /app\n", branchName)
 
-	// Create giverny/START label branch to mark where we started
-	startLabel := branchName + "/START"
+	// Create START label branch to mark where we started
+	startLabel := branchName + "-START"
 	cmd = exec.Command("git", "-C", "/app", "branch", startLabel)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to create START label branch %s: %w", startLabel, err)

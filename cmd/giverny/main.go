@@ -233,7 +233,7 @@ func runInnie(config Config) error {
 	}
 
 	// Execute Claude Code with the prompt
-	if err := executeClaude(config.Prompt); err != nil {
+	if err := executeClaude(config.Prompt, true); err != nil {
 		return fmt.Errorf("failed to execute Claude: %w", err)
 	}
 
@@ -251,14 +251,25 @@ func runInnie(config Config) error {
 }
 
 // executeClaude runs Claude Code with the given prompt in /app
-func executeClaude(prompt string) error {
-	fmt.Printf("Executing Claude Code...\n")
+func executeClaude(prompt string, interactive bool) error {
+	if interactive {
+		fmt.Printf("Executing Claude Code...\n")
+	} else {
+		fmt.Printf("Executing Claude Code in non-interactive mode...\n")
+	}
 
-	cmd := exec.Command("claude", "--dangerously-skip-permissions", prompt)
+	args := []string{"--dangerously-skip-permissions"}
+	if !interactive {
+		args = append(args, "--print")
+	}
+	args = append(args, prompt)
+
+	cmd := exec.Command("claude", args...)
 	cmd.Dir = "/app"
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
+	cmd.Env = append(os.Environ(), "IS_SANDBOX=1")
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("Claude exited with error: %w", err)
@@ -281,7 +292,7 @@ func postClaudeMenu() error {
 
 		// Show menu
 		fmt.Println("\nWhat would you like to do?")
-		fmt.Println("  [c] Commit changes")
+		fmt.Println("  [c] Ask Claude to Commit the changes")
 		fmt.Println("  [s] Start a shell")
 		fmt.Println("  [r] Restart Claude")
 		fmt.Println("  [x] Exit")
@@ -296,10 +307,7 @@ func postClaudeMenu() error {
 
 		switch choice {
 		case "c":
-			if err := commitChanges(); err != nil {
-				fmt.Fprintf(os.Stderr, "Error committing: %v\n", err)
-				continue
-			}
+			return executeClaude("Commit the changes", false)
 		case "s":
 			if err := startShell(); err != nil {
 				fmt.Fprintf(os.Stderr, "Error starting shell: %v\n", err)
@@ -307,7 +315,7 @@ func postClaudeMenu() error {
 			}
 		case "r":
 			// Restart Claude - just return and let the loop continue
-			return executeClaude(os.Args[len(os.Args)-1])
+			return executeClaude(os.Args[len(os.Args)-1], true)
 		case "x":
 			// Only allow exit if workspace is clean
 			if dirty {
@@ -319,37 +327,6 @@ func postClaudeMenu() error {
 			fmt.Println("Invalid choice. Please enter c, s, r, or x.")
 		}
 	}
-}
-
-// commitChanges commits all changes in /app
-func commitChanges() error {
-	fmt.Println("Committing changes...")
-
-	// Add all changes
-	cmd := exec.Command("git", "add", "-A")
-	cmd.Dir = "/app"
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("git add failed: %w", err)
-	}
-
-	// Commit with a prompt for message
-	fmt.Print("Commit message: ")
-	var message string
-	fmt.Scanln(&message)
-	if message == "" {
-		message = "Work in progress"
-	}
-
-	cmd = exec.Command("git", "commit", "-m", message)
-	cmd.Dir = "/app"
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("git commit failed: %w", err)
-	}
-
-	fmt.Println("✓ Changes committed")
-	return nil
 }
 
 // startShell starts an interactive shell in /app

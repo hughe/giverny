@@ -19,11 +19,20 @@ func RunContainer(taskID, prompt string, gitPort int, dockerArgs string, debug b
 	// Generate a container name based on task ID
 	containerName := fmt.Sprintf("giverny-%s", taskID)
 
+	// Get home directory for mounting Claude config
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get home directory: %w", err)
+	}
+
 	// Build the docker run command
 	args := []string{
 		"run",
+		"-it",
 		"--name", containerName,
 		"--env", "CLAUDE_CODE_OAUTH_TOKEN",
+		"-v", fmt.Sprintf("%s/.claude:/root/.claude", homeDir),
+		"-v", fmt.Sprintf("%s/.claude.json:/root/.claude.json", homeDir),
 	}
 
 	// Add any additional docker args
