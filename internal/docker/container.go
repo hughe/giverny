@@ -64,18 +64,15 @@ func RunContainer(taskID, prompt string, gitPort int, dockerArgs string, debug b
 		}
 	}
 
-	// Only remove container if it exited successfully
-	if exitCode == 0 {
-		fmt.Printf("Container exited successfully, removing...\n")
-		rmCmd := exec.Command("docker", "rm", containerName)
-		if err := rmCmd.Run(); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: failed to remove container %s: %v\n", containerName, err)
-		}
-	} else {
-		fmt.Printf("Container exited with code %d, leaving container for inspection\n", exitCode)
-		fmt.Printf("\nTo restart the container, run:\n")
-		fmt.Printf("  docker start -ai %s\n", containerName)
-	}
-
 	return exitCode, nil
+}
+
+// RemoveContainer removes a Docker container by name
+func RemoveContainer(containerName string) error {
+	cmd := exec.Command("docker", "rm", containerName)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to remove container %s: %w", containerName, err)
+	}
+	fmt.Printf("✓ Container removed\n")
+	return nil
 }
