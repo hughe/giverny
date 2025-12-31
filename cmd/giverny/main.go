@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strings"
 
 	"giverny"
 	"giverny/internal/docker"
@@ -44,6 +46,52 @@ func main() {
 	}
 }
 
+// validateTaskID ensures TASK-ID contains only characters valid in git branch names.
+// Since we use the format "giverny/TASK-ID", the TASK-ID must not contain '/' and
+// must follow git branch naming rules.
+func validateTaskID(taskID string) error {
+	if taskID == "" {
+		return fmt.Errorf("TASK-ID cannot be empty")
+	}
+
+	// Regex for invalid characters in git branch names:
+	// - No forward slash, backslash, space, control chars (0-31, 127)
+	// - No ~, ^, :, ?, *, [
+	invalidCharsPattern := regexp.MustCompile(`[/\\\s\x00-\x1f\x7f~^:?*\[]`)
+	if match := invalidCharsPattern.FindString(taskID); match != "" {
+		if match == "/" {
+			return fmt.Errorf("TASK-ID cannot contain forward slash (/)")
+		} else if match == "\\" {
+			return fmt.Errorf("TASK-ID cannot contain backslash (\\)")
+		} else if match == " " {
+			return fmt.Errorf("TASK-ID cannot contain spaces")
+		} else if match[0] < 32 || match[0] == 127 {
+			return fmt.Errorf("TASK-ID cannot contain control characters")
+		}
+		return fmt.Errorf("TASK-ID cannot contain '%s'", match)
+	}
+
+	// Check for special invalid patterns
+	if strings.Contains(taskID, "..") {
+		return fmt.Errorf("TASK-ID cannot contain double dots (..)")
+	}
+	if strings.Contains(taskID, "@{") {
+		return fmt.Errorf("TASK-ID cannot contain @{")
+	}
+
+	// Check if starts with dot
+	if strings.HasPrefix(taskID, ".") {
+		return fmt.Errorf("TASK-ID cannot start with a dot")
+	}
+
+	// Check if ends with .lock
+	if strings.HasSuffix(taskID, ".lock") {
+		return fmt.Errorf("TASK-ID cannot end with .lock")
+	}
+
+	return nil
+}
+
 func parseArgs(flags *flag.FlagSet, args []string) Config {
 	var config Config
 
@@ -77,6 +125,13 @@ func parseArgs(flags *flag.FlagSet, args []string) Config {
 	}
 
 	config.TaskID = positionalArgs[0]
+
+	// Validate TASK-ID
+	if err := validateTaskID(config.TaskID); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: Invalid TASK-ID: %v\n\n", err)
+		flags.Usage()
+		os.Exit(1)
+	}
 
 	// Set prompt - default or from argument
 	if len(positionalArgs) >= 2 {

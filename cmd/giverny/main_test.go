@@ -206,6 +206,72 @@ func TestIsWorkspaceDirty_CleanWorkspace(t *testing.T) {
 	}
 }
 
+func TestValidateTaskID(t *testing.T) {
+	tests := []struct {
+		name    string
+		taskID  string
+		wantErr bool
+		errMsg  string
+	}{
+		// Valid task IDs
+		{name: "valid simple", taskID: "abc", wantErr: false},
+		{name: "valid with numbers", taskID: "task-123", wantErr: false},
+		{name: "valid with underscores", taskID: "my_task", wantErr: false},
+		{name: "valid with dots", taskID: "task.1.2", wantErr: false},
+		{name: "valid mixed", taskID: "giv-4z1", wantErr: false},
+
+		// Invalid - empty
+		{name: "empty", taskID: "", wantErr: true, errMsg: "cannot be empty"},
+
+		// Invalid - forward slash
+		{name: "contains slash", taskID: "task/123", wantErr: true, errMsg: "forward slash"},
+
+		// Invalid - starts with dot
+		{name: "starts with dot", taskID: ".task", wantErr: true, errMsg: "start with a dot"},
+
+		// Invalid - ends with .lock
+		{name: "ends with .lock", taskID: "task.lock", wantErr: true, errMsg: "end with .lock"},
+
+		// Invalid - double dots
+		{name: "contains double dots", taskID: "task..123", wantErr: true, errMsg: "double dots"},
+
+		// Invalid - @{
+		{name: "contains @{", taskID: "task@{123", wantErr: true, errMsg: "@{"},
+
+		// Invalid - special characters
+		{name: "contains backslash", taskID: "task\\123", wantErr: true, errMsg: "backslash"},
+		{name: "contains space", taskID: "task 123", wantErr: true, errMsg: "space"},
+		{name: "contains tilde", taskID: "task~123", wantErr: true, errMsg: "~"},
+		{name: "contains caret", taskID: "task^123", wantErr: true, errMsg: "^"},
+		{name: "contains colon", taskID: "task:123", wantErr: true, errMsg: ":"},
+		{name: "contains question mark", taskID: "task?123", wantErr: true, errMsg: "?"},
+		{name: "contains asterisk", taskID: "task*123", wantErr: true, errMsg: "*"},
+		{name: "contains square bracket", taskID: "task[123", wantErr: true, errMsg: "["},
+
+		// Invalid - control characters
+		{name: "contains newline", taskID: "task\n123", wantErr: true, errMsg: "control"},
+		{name: "contains tab", taskID: "task\t123", wantErr: true, errMsg: "control"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateTaskID(tt.taskID)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("validateTaskID(%q) expected error containing %q, got nil", tt.taskID, tt.errMsg)
+				} else if !strings.Contains(err.Error(), tt.errMsg) {
+					t.Errorf("validateTaskID(%q) expected error containing %q, got %q", tt.taskID, tt.errMsg, err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Errorf("validateTaskID(%q) expected no error, got %v", tt.taskID, err)
+				}
+			}
+		})
+	}
+}
+
 func TestIsWorkspaceDirty_DirtyWorkspace(t *testing.T) {
 	// Create a temporary directory for testing
 	tmpDir, err := os.MkdirTemp("", "giverny-test-*")
