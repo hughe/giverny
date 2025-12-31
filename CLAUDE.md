@@ -52,13 +52,13 @@ giverny TASK-ID [PROMPT]
 The project includes several Makefile targets for testing:
 
 ```bash
-make test-with-env   # Run tests with environment setup/teardown in /tmp/
-make test-binary     # Test the giverny binary
+make test        # Run tests with environment setup/teardown in /tmp/
+make test-binary # Test the giverny binary
 ```
 
-**IMPORTANT:** *Always* run tests with `make test-with-env`.  *Always* test the binary using `make test-binary`.
+**IMPORTANT:** *Always* run tests with `make test`.  *Always* test the binary using `make test-binary`.
 
-The `test-with-env` and `test-binary` targets automatically:
+The `test` and `test-binary` targets automatically:
 1. Set up a test environment in `/tmp/giverny-test-env-*`
 2. Initialize a git repository for testing
 3. Run the tests or binary
