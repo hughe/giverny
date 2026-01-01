@@ -16,11 +16,10 @@ permissions:
 
 jobs:
   build:
-    name: Build on ${{ matrix.os }}
+    name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
         include:
           - os: ubuntu-latest
             goos: linux
@@ -28,6 +27,9 @@ jobs:
           - os: macos-latest
             goos: darwin
             goarch: amd64
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
 
     steps:
       - name: Checkout code
@@ -42,7 +44,7 @@ jobs:
         run: make test
 
       - name: Build binary
-        run: make build
+        run: GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} make build
 
       - name: Archive binary
         run: |
@@ -73,10 +75,16 @@ jobs:
           name: giverny-linux-amd64
           path: dist/
 
-      - name: Download macOS artifact
+      - name: Download macOS amd64 artifact
         uses: actions/download-artifact@v4
         with:
           name: giverny-darwin-amd64
+          path: dist/
+
+      - name: Download macOS arm64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: giverny-darwin-arm64
           path: dist/
 
       - name: Create Release
@@ -85,6 +93,7 @@ jobs:
           files: |
             dist/giverny-linux-amd64.tar.gz
             dist/giverny-darwin-amd64.tar.gz
+            dist/giverny-darwin-arm64.tar.gz
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
