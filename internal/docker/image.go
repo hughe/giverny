@@ -58,7 +58,18 @@ RUN make && \
 # Verify the binary was created
 RUN test -f /output/diffreviewer
 
-# Stage 3: Final image with dependencies
+# Stage 3: Build beads
+FROM golang:alpine AS beads-builder
+
+# Install beads
+RUN go install github.com/steveyegge/beads/cmd/bd@latest && \
+    mkdir -p /output && \
+    ln $(go env GOPATH)/bin/bd /output/bd
+
+# Verify the binary was created
+RUN test -f /output/bd
+
+# Stage 4: Final image with dependencies
 FROM {{.BaseImage}}
 
 # Install git if not present
@@ -81,6 +92,9 @@ COPY --from=builder /output/giverny /usr/local/bin/giverny
 
 # Copy diffreviewer binary from diffreviewer-builder stage
 COPY --from=diffreviewer-builder /output/diffreviewer /usr/local/bin/diffreviewer
+
+# Copy beads binary from beads-builder stage
+COPY --from=beads-builder /output/bd /usr/local/bin/bd
 
 # Set working directory
 WORKDIR /app

@@ -47,11 +47,14 @@ func TestGenerateDockerfile(t *testing.T) {
 	expectedStrings := []string{
 		"FROM golang:alpine AS builder",
 		"FROM golang:alpine AS diffreviewer-builder",
+		"FROM golang:alpine AS beads-builder",
 		"apk add --no-cache git curl nodejs npm make",
 		"RUN make",
+		"go install github.com/steveyegge/beads/cmd/bd@latest",
 		"FROM ubuntu:22.04",
 		"COPY --from=builder",
 		"COPY --from=diffreviewer-builder",
+		"COPY --from=beads-builder",
 		"v0.1.1",
 	}
 
@@ -137,6 +140,17 @@ func TestBuildImage_IntegrationTest(t *testing.T) {
 
 	if !strings.Contains(string(output), "/usr/local/bin/diffreviewer") {
 		t.Errorf("diffreviewer not installed in expected location, got: %s", output)
+	}
+
+	// Verify beads binary exists in the image
+	cmd = exec.Command("docker", "run", "--rm", "giverny-main:latest", "which", "bd")
+	output, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("bd not found in image: %v, output: %s", err, output)
+	}
+
+	if !strings.Contains(string(output), "/usr/local/bin/bd") {
+		t.Errorf("bd not installed in expected location, got: %s", output)
 	}
 
 	// Clean up - remove the test image
