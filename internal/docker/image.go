@@ -14,6 +14,9 @@ import (
 // This is set by the main package which has access to the module root.
 var EmbeddedSource embed.FS
 
+// DiffreviewerVersion specifies the version of diffreviewer to install
+const DiffreviewerVersion = "v0.1.1"
+
 const dockerfileTemplate = `# Stage 1: Build giverny binary
 FROM golang:alpine AS builder
 
@@ -32,7 +35,30 @@ RUN go build -o /output/giverny ./cmd/giverny
 # Verify the binary was created
 RUN test -f /output/giverny && chmod +x /output/giverny
 
-# Stage 2: Final image with dependencies
+# Stage 2: Build diffreviewer
+FROM golang:alpine AS diffreviewer-builder
+
+# Install build dependencies
+RUN apk add --no-cache git curl nodejs npm make
+
+# Set working directory
+WORKDIR /build
+
+# Download and extract diffreviewer source
+RUN curl -L https://api.github.com/repos/hughe/diffreviewer/tarball/{{.DiffreviewerVersion}} -o diffreviewer.tar.gz && \
+    mkdir -p diffreviewer && \
+    tar -xzf diffreviewer.tar.gz -C diffreviewer --strip-components=1
+
+# Build diffreviewer using Makefile
+WORKDIR /build/diffreviewer
+RUN make && \
+    mkdir -p /output && \
+    ln bin/diffreviewer /output/diffreviewer
+
+# Verify the binary was created
+RUN test -f /output/diffreviewer
+
+# Stage 3: Final image with dependencies
 FROM {{.BaseImage}}
 
 # Install git if not present
@@ -52,14 +78,17 @@ RUN npm install -g @anthropic-ai/claude-code
 
 # Copy giverny binary from builder stage
 COPY --from=builder /output/giverny /usr/local/bin/giverny
-RUN chmod +x /usr/local/bin/giverny
+
+# Copy diffreviewer binary from diffreviewer-builder stage
+COPY --from=diffreviewer-builder /output/diffreviewer /usr/local/bin/diffreviewer
 
 # Set working directory
 WORKDIR /app
 `
 
 type DockerfileData struct {
-	BaseImage string
+	BaseImage           string
+	DiffreviewerVersion string
 }
 
 // BuildImage builds the giverny Docker image using a multistage Dockerfile.
@@ -82,7 +111,8 @@ func BuildImage(baseImage string, showOutput bool) error {
 	// Generate Dockerfile
 	dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
 	data := DockerfileData{
-		BaseImage: baseImage,
+		BaseImage:           baseImage,
+		DiffreviewerVersion: DiffreviewerVersion,
 	}
 	if err := generateDockerfile(dockerfilePath, dockerfileTemplate, data); err != nil {
 		return fmt.Errorf("failed to generate Dockerfile: %w", err)
