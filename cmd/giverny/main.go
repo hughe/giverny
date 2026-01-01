@@ -207,14 +207,9 @@ func runOutie(config Config) error {
 	}()
 	fmt.Printf("Started git server on port: %d\n", gitPort)
 
-	// Build giverny-innie Docker image
-	if err := docker.BuildInnieImage(config.ShowBuildOutput); err != nil {
-		return fmt.Errorf("failed to build innie image: %w", err)
-	}
-
-	// Build giverny-main Docker image
-	if err := docker.BuildMainImage(config.BaseImage, config.ShowBuildOutput); err != nil {
-		return fmt.Errorf("failed to build main image: %w", err)
+	// Build giverny Docker image
+	if err := docker.BuildImage(config.BaseImage, config.ShowBuildOutput); err != nil {
+		return fmt.Errorf("failed to build image: %w", err)
 	}
 
 	fmt.Printf("Running Outie for task: %s\n", config.TaskID)

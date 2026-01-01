@@ -10,11 +10,11 @@ import (
 	"text/template"
 )
 
-// EmbeddedSource holds the embedded source code for building the innie image.
+// EmbeddedSource holds the embedded source code for building the image.
 // This is set by the main package which has access to the module root.
 var EmbeddedSource embed.FS
 
-const dockerfileInnieTemplate = `# Build stage for giverny binary
+const dockerfileTemplate = `# Stage 1: Build giverny binary
 FROM golang:alpine AS builder
 
 # Install build dependencies
@@ -31,15 +31,44 @@ RUN go build -o /output/giverny ./cmd/giverny
 
 # Verify the binary was created
 RUN test -f /output/giverny && chmod +x /output/giverny
+
+# Stage 2: Final image with dependencies
+FROM {{.BaseImage}}
+
+# Install git if not present
+RUN command -v git >/dev/null 2>&1 || \
+    (apt-get update && apt-get install -y git) || \
+    (apk add --no-cache git) || \
+    (yum install -y git)
+
+# Install node and npm if not present
+RUN command -v node >/dev/null 2>&1 || \
+    (apt-get update && apt-get install -y nodejs npm) || \
+    (apk add --no-cache nodejs npm) || \
+    (yum install -y nodejs npm)
+
+# Install Claude Code
+RUN npm install -g @anthropic-ai/claude-code
+
+# Copy giverny binary from builder stage
+COPY --from=builder /output/giverny /usr/local/bin/giverny
+RUN chmod +x /usr/local/bin/giverny
+
+# Set working directory
+WORKDIR /app
 `
 
-// BuildInnieImage builds the giverny-innie Docker image.
+type DockerfileData struct {
+	BaseImage string
+}
+
+// BuildImage builds the giverny Docker image using a multistage Dockerfile.
 // It creates a temporary directory, extracts embedded source code,
 // generates the Dockerfile, builds the image, optionally streams output
 // to stdout based on showOutput, and cleans up.
-func BuildInnieImage(showOutput bool) error {
+func BuildImage(baseImage string, showOutput bool) error {
 	// Create temporary directory
-	tmpDir, err := os.MkdirTemp("", "giverny-innie-*")
+	tmpDir, err := os.MkdirTemp("", "giverny-build-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp directory: %w", err)
 	}
@@ -51,17 +80,19 @@ func BuildInnieImage(showOutput bool) error {
 	}
 
 	// Generate Dockerfile
-	dockerfilePath := filepath.Join(tmpDir, "Dockerfile.innie")
-	if err := generateDockerfile(dockerfilePath, dockerfileInnieTemplate, nil); err != nil {
+	dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
+	data := DockerfileData{
+		BaseImage: baseImage,
+	}
+	if err := generateDockerfile(dockerfilePath, dockerfileTemplate, data); err != nil {
 		return fmt.Errorf("failed to generate Dockerfile: %w", err)
 	}
 
 	// Build Docker image using temp directory as build context
-	fmt.Println("Building giverny-innie image...")
+	fmt.Println("Building giverny image...")
 	cmd := exec.Command("docker", "build",
-		"--no-cache",
 		"-f", dockerfilePath,
-		"-t", "giverny-innie:latest",
+		"-t", "giverny-main:latest",
 		tmpDir,
 	)
 
@@ -75,7 +106,7 @@ func BuildInnieImage(showOutput bool) error {
 		return fmt.Errorf("docker build failed: %w", err)
 	}
 
-	fmt.Println("Successfully built giverny-innie:latest")
+	fmt.Println("Successfully built giverny-main:latest")
 	return nil
 }
 
