@@ -1,8 +1,10 @@
-.PHONY: build clean test test-binary run install
+.PHONY: all build clean test test-binary run install image
+
+all: build
 
 # Binary name
 BINARY_NAME=giverny
-BUILD_DIR=build
+BUILD_DIR=bin
 
 # Test environment directory - defaults to unique temp dir if not already set
 # Use ?= to allow override via environment variable or command line
@@ -44,10 +46,6 @@ test-binary: build
 	./scripts/teardown-test-env.sh; \
 	exit $$TEST_RESULT)
 
-# Run the application
-run: build
-	@./$(BUILD_DIR)/$(BINARY_NAME)
-
 # Install to $GOPATH/bin
 install:
 	@echo "Installing $(BINARY_NAME)..."
@@ -63,6 +61,10 @@ lint:
 	@echo "Running linter..."
 	golangci-lint run
 
+image:
+	@echo "Building Docker image for Giverny to work on Giverny ..."
+	cd docker && docker build -t giverny-builder . 
+
 # Show help
 help:
 	@echo "Available targets:"
@@ -70,7 +72,6 @@ help:
 	@echo "  clean          - Remove build artifacts"
 	@echo "  test           - Run tests with environment setup/teardown"
 	@echo "  test-binary    - Test the giverny binary"
-	@echo "  run            - Build and run the application"
 	@echo "  install        - Install to GOPATH/bin"
 	@echo "  fmt            - Format code"
 	@echo "  lint           - Run linter"
