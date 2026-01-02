@@ -293,6 +293,11 @@ func runInnie(config Config) error {
 		return fmt.Errorf("failed to setup workspace: %w", err)
 	}
 
+	// Change to /app directory for all subsequent operations
+	if err := os.Chdir("/app"); err != nil {
+		return fmt.Errorf("failed to change to /app directory: %w", err)
+	}
+
 	// Execute Claude Code with the prompt
 	if err := executeClaude(config.Prompt, true); err != nil {
 		return fmt.Errorf("failed to execute Claude: %w", err)

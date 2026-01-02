@@ -33,13 +33,9 @@ func SetupWorkspace(branchName string) error {
 	return nil
 }
 
-// IsWorkspaceDirty checks if there are uncommitted changes in /app
+// IsWorkspaceDirty checks if there are uncommitted changes in the current git repository
 func IsWorkspaceDirty() (bool, error) {
 	cmd := exec.Command("git", "status", "--porcelain")
-	// Use /app if it exists, otherwise use current directory (for testing)
-	if _, err := os.Stat("/app"); err == nil {
-		cmd.Dir = "/app"
-	}
 	output, err := cmd.Output()
 	if err != nil {
 		return false, err
