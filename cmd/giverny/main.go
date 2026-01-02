@@ -98,10 +98,12 @@ func parseArgs(flags *flag.FlagSet, args []string) Config {
 	// Define flags
 	flags.StringVar(&config.BaseImage, "base-image", "giverny:latest", "Docker base image")
 	flags.StringVar(&config.DockerArgs, "docker-args", "", "Additional docker run arguments")
-	flags.BoolVar(&config.IsInnie, "innie", false, "Flag indicating running inside container")
-	flags.IntVar(&config.GitServerPort, "git-server-port", 0, "Port for git daemon connection")
 	flags.BoolVar(&config.Debug, "debug", false, "Enable debug output")
 	flags.BoolVar(&config.ShowBuildOutput, "show-build-output", false, "Show docker build output")
+
+	// Hidden flags (for internal use only)
+	flags.BoolVar(&config.IsInnie, "innie", false, "")
+	flags.IntVar(&config.GitServerPort, "git-server-port", 0, "")
 
 	// Custom usage message
 	flags.Usage = func() {
@@ -111,7 +113,16 @@ func parseArgs(flags *flag.FlagSet, args []string) Config {
 		fmt.Fprintf(os.Stderr, "  TASK-ID    Task identifier (required)\n")
 		fmt.Fprintf(os.Stderr, "  PROMPT     Prompt for Claude Code (optional, defaults to 'Please work on TASK-ID.')\n\n")
 		fmt.Fprintf(os.Stderr, "Options:\n")
-		flags.PrintDefaults()
+		// Print only flags with non-empty usage strings (excludes hidden flags)
+		flags.VisitAll(func(f *flag.Flag) {
+			if f.Usage != "" {
+				fmt.Fprintf(os.Stderr, "  -%s", f.Name)
+				if f.DefValue != "" && f.DefValue != "false" {
+					fmt.Fprintf(os.Stderr, " %s", f.DefValue)
+				}
+				fmt.Fprintf(os.Stderr, "\n    \t%s\n", f.Usage)
+			}
+		})
 	}
 
 	flags.Parse(args)
