@@ -1,7 +1,7 @@
 package docker
 
 import (
-	"embed"
+	"giverny"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -107,9 +107,6 @@ func TestGenerateDockerfileWithDifferentBaseImage(t *testing.T) {
 	}
 }
 
-//go:embed image.go image_test.go
-var testEmbedFS embed.FS
-
 func TestBuildImage_IntegrationTest(t *testing.T) {
 	// Skip unless INTEGRATION_TEST=1
 	if os.Getenv("INTEGRATION_TEST") != "1" {
@@ -117,7 +114,7 @@ func TestBuildImage_IntegrationTest(t *testing.T) {
 	}
 
 	// Set up embedded source (normally done by main package)
-	EmbeddedSource = testEmbedFS
+	EmbeddedSource = giverny.Source
 
 	// Build the image
 	err := BuildImage("alpine:latest", true)

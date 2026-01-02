@@ -21,7 +21,7 @@ const dockerfileTemplate = `# Stage 1: Build giverny binary
 FROM golang:alpine AS builder
 
 # Install build dependencies
-RUN apk add --no-cache git
+RUN apk add --no-cache git make
 
 # Set working directory
 WORKDIR /build
@@ -30,7 +30,7 @@ WORKDIR /build
 COPY . .
 
 # Build the binary
-RUN go build -o /output/giverny ./cmd/giverny
+RUN mkdir -p /output && make build && ln ./bin/giverny /output/giverny
 
 # Verify the binary was created
 RUN test -f /output/giverny && chmod +x /output/giverny

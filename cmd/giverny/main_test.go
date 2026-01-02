@@ -37,7 +37,7 @@ func TestRunOutie_ValidatesClaudeToken(t *testing.T) {
 		cmd.Run() // Ignore errors - container may not exist
 	}()
 
-	tests := []struct{
+	tests := []struct {
 		name        string
 		tokenValue  string
 		shouldError bool

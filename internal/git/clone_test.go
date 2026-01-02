@@ -16,6 +16,13 @@ func TestCloneRepo(t *testing.T) {
 		t.Skip("Skipping integration test. Set INTEGRATION_TEST=1 to run.")
 	}
 
+	// Check if we can create /git directory (requires Docker container environment)
+	gitDir := "/git"
+	if err := os.MkdirAll(gitDir, 0755); err != nil {
+		t.Skipf("Skipping test - cannot create %s directory (not in container environment): %v", gitDir, err)
+	}
+	defer os.RemoveAll(gitDir)
+
 	// This would only run in the actual container integration tests
 	port := 9418 // Default git daemon port
 	err := CloneRepo(port)
