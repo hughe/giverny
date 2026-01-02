@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/spf13/cobra"
 	"giverny"
 	"giverny/internal/docker"
 	"giverny/internal/git"
@@ -30,18 +30,57 @@ type Config struct {
 	ShowBuildOutput bool
 }
 
-func main() {
-	config := parseArgs(flag.CommandLine, os.Args[1:])
+var (
+	config Config
+)
 
-	var err error
-	if config.IsInnie {
-		err = runInnie(config)
-	} else {
-		err = runOutie(config)
+func main() {
+	rootCmd := &cobra.Command{
+		Use:   "giverny [OPTIONS] TASK-ID [PROMPT]",
+		Short: "Containerized system for running Claude Code safely",
+		Long:  "Giverny creates isolated Docker environments where Claude Code can work on tasks without affecting the host system.",
+		Args:  cobra.RangeArgs(1, 2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			config.TaskID = args[0]
+
+			// Validate TASK-ID
+			if err := validateTaskID(config.TaskID); err != nil {
+				return fmt.Errorf("invalid TASK-ID: %w", err)
+			}
+
+			// Set prompt - default or from argument
+			if len(args) >= 2 {
+				config.Prompt = args[1]
+			} else {
+				config.Prompt = fmt.Sprintf("Please work on %s.", config.TaskID)
+			}
+
+			// Validate innie-specific requirements
+			if config.IsInnie && config.GitServerPort == 0 {
+				return fmt.Errorf("--git-server-port is required when --innie is set")
+			}
+
+			// Execute appropriate mode
+			if config.IsInnie {
+				return runInnie(config)
+			}
+			return runOutie(config)
+		},
 	}
 
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+	// Define flags
+	rootCmd.Flags().StringVar(&config.BaseImage, "base-image", "giverny:latest", "Docker base image")
+	rootCmd.Flags().StringVar(&config.DockerArgs, "docker-args", "", "Additional docker run arguments")
+	rootCmd.Flags().BoolVar(&config.Debug, "debug", false, "Enable debug output")
+	rootCmd.Flags().BoolVar(&config.ShowBuildOutput, "show-build-output", false, "Show docker build output")
+
+	// Hidden flags (for internal use only)
+	rootCmd.Flags().BoolVar(&config.IsInnie, "innie", false, "Internal flag for running inside container")
+	rootCmd.Flags().IntVar(&config.GitServerPort, "git-server-port", 0, "Internal flag for git server port")
+	rootCmd.Flags().MarkHidden("innie")
+	rootCmd.Flags().MarkHidden("git-server-port")
+
+	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
 }
@@ -90,74 +129,6 @@ func validateTaskID(taskID string) error {
 	}
 
 	return nil
-}
-
-func parseArgs(flags *flag.FlagSet, args []string) Config {
-	var config Config
-
-	// Define flags
-	flags.StringVar(&config.BaseImage, "base-image", "giverny:latest", "Docker base image")
-	flags.StringVar(&config.DockerArgs, "docker-args", "", "Additional docker run arguments")
-	flags.BoolVar(&config.Debug, "debug", false, "Enable debug output")
-	flags.BoolVar(&config.ShowBuildOutput, "show-build-output", false, "Show docker build output")
-
-	// Hidden flags (for internal use only)
-	flags.BoolVar(&config.IsInnie, "innie", false, "")
-	flags.IntVar(&config.GitServerPort, "git-server-port", 0, "")
-
-	// Custom usage message
-	flags.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: giverny [OPTIONS] TASK-ID [PROMPT]\n\n")
-		fmt.Fprintf(os.Stderr, "Giverny - Containerized system for running Claude Code safely\n\n")
-		fmt.Fprintf(os.Stderr, "Arguments:\n")
-		fmt.Fprintf(os.Stderr, "  TASK-ID    Task identifier (required)\n")
-		fmt.Fprintf(os.Stderr, "  PROMPT     Prompt for Claude Code (optional, defaults to 'Please work on TASK-ID.')\n\n")
-		fmt.Fprintf(os.Stderr, "Options:\n")
-		// Print only flags with non-empty usage strings (excludes hidden flags)
-		flags.VisitAll(func(f *flag.Flag) {
-			if f.Usage != "" {
-				fmt.Fprintf(os.Stderr, "  -%s", f.Name)
-				if f.DefValue != "" && f.DefValue != "false" {
-					fmt.Fprintf(os.Stderr, " %s", f.DefValue)
-				}
-				fmt.Fprintf(os.Stderr, "\n    \t%s\n", f.Usage)
-			}
-		})
-	}
-
-	flags.Parse(args)
-
-	// Get positional arguments
-	positionalArgs := flags.Args()
-	if len(positionalArgs) < 1 {
-		fmt.Fprintf(os.Stderr, "Error: TASK-ID is required\n\n")
-		flags.Usage()
-		os.Exit(1)
-	}
-
-	config.TaskID = positionalArgs[0]
-
-	// Validate TASK-ID
-	if err := validateTaskID(config.TaskID); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: Invalid TASK-ID: %v\n\n", err)
-		flags.Usage()
-		os.Exit(1)
-	}
-
-	// Set prompt - default or from argument
-	if len(positionalArgs) >= 2 {
-		config.Prompt = positionalArgs[1]
-	} else {
-		config.Prompt = fmt.Sprintf("Please work on %s.", config.TaskID)
-	}
-
-	// Validate innie-specific requirements
-	if config.IsInnie && config.GitServerPort == 0 {
-		fmt.Fprintf(os.Stderr, "Error: --git-server-port is required when --innie is set\n")
-		os.Exit(1)
-	}
-
-	return config
 }
 
 // findProjectRoot finds the project root by looking for .git directory

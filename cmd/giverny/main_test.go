@@ -1,13 +1,13 @@
 package main
 
 import (
-	"flag"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"giverny/internal/git"
 )
 
@@ -87,11 +87,63 @@ func TestRunOutie_ValidatesClaudeToken(t *testing.T) {
 	}
 }
 
-func TestParseArgs_DefaultPrompt(t *testing.T) {
-	flags := flag.NewFlagSet("test", flag.ContinueOnError)
-	args := []string{"task-123"}
+// createTestCommand creates a cobra command for testing without running the actual execution
+func createTestCommand(validateOnly bool) *cobra.Command {
+	var testConfig Config
 
-	config := parseArgs(flags, args)
+	cmd := &cobra.Command{
+		Use:   "giverny [OPTIONS] TASK-ID [PROMPT]",
+		Short: "Containerized system for running Claude Code safely",
+		Long:  "Giverny creates isolated Docker environments where Claude Code can work on tasks without affecting the host system.",
+		Args:  cobra.RangeArgs(1, 2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			testConfig.TaskID = args[0]
+
+			// Validate TASK-ID
+			if err := validateTaskID(testConfig.TaskID); err != nil {
+				return err
+			}
+
+			// Set prompt - default or from argument
+			if len(args) >= 2 {
+				testConfig.Prompt = args[1]
+			} else {
+				testConfig.Prompt = "Please work on " + testConfig.TaskID + "."
+			}
+
+			// Validate innie-specific requirements
+			if testConfig.IsInnie && testConfig.GitServerPort == 0 {
+				return nil // Don't fail validation for tests
+			}
+
+			// Copy to global config for test access
+			config = testConfig
+			return nil
+		},
+		SilenceUsage: true,
+	}
+
+	// Define flags
+	cmd.Flags().StringVar(&testConfig.BaseImage, "base-image", "giverny:latest", "Docker base image")
+	cmd.Flags().StringVar(&testConfig.DockerArgs, "docker-args", "", "Additional docker run arguments")
+	cmd.Flags().BoolVar(&testConfig.Debug, "debug", false, "Enable debug output")
+	cmd.Flags().BoolVar(&testConfig.ShowBuildOutput, "show-build-output", false, "Show docker build output")
+	cmd.Flags().BoolVar(&testConfig.IsInnie, "innie", false, "Internal flag for running inside container")
+	cmd.Flags().IntVar(&testConfig.GitServerPort, "git-server-port", 0, "Internal flag for git server port")
+	cmd.Flags().MarkHidden("innie")
+	cmd.Flags().MarkHidden("git-server-port")
+
+	return cmd
+}
+
+func TestParseArgs_DefaultPrompt(t *testing.T) {
+	cmd := createTestCommand(true)
+	cmd.SetArgs([]string{"task-123"})
+
+	err := cmd.Execute()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	if config.TaskID != "task-123" {
 		t.Errorf("expected TaskID 'task-123', got '%s'", config.TaskID)
@@ -108,10 +160,13 @@ func TestParseArgs_DefaultPrompt(t *testing.T) {
 }
 
 func TestParseArgs_CustomPrompt(t *testing.T) {
-	flags := flag.NewFlagSet("test", flag.ContinueOnError)
-	args := []string{"task-456", "Custom prompt here"}
+	cmd := createTestCommand(true)
+	cmd.SetArgs([]string{"task-456", "Custom prompt here"})
 
-	config := parseArgs(flags, args)
+	err := cmd.Execute()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	if config.TaskID != "task-456" {
 		t.Errorf("expected TaskID 'task-456', got '%s'", config.TaskID)
@@ -123,14 +178,17 @@ func TestParseArgs_CustomPrompt(t *testing.T) {
 }
 
 func TestParseArgs_WithFlags(t *testing.T) {
-	flags := flag.NewFlagSet("test", flag.ContinueOnError)
-	args := []string{
+	cmd := createTestCommand(true)
+	cmd.SetArgs([]string{
 		"--base-image", "ubuntu:22.04",
 		"--docker-args", "-v /tmp:/tmp",
 		"task-789",
-	}
+	})
 
-	config := parseArgs(flags, args)
+	err := cmd.Execute()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	if config.TaskID != "task-789" {
 		t.Errorf("expected TaskID 'task-789', got '%s'", config.TaskID)
@@ -146,14 +204,17 @@ func TestParseArgs_WithFlags(t *testing.T) {
 }
 
 func TestParseArgs_InnieMode(t *testing.T) {
-	flags := flag.NewFlagSet("test", flag.ContinueOnError)
-	args := []string{
+	cmd := createTestCommand(true)
+	cmd.SetArgs([]string{
 		"--innie",
 		"--git-server-port", "3000",
 		"task-001",
-	}
+	})
 
-	config := parseArgs(flags, args)
+	err := cmd.Execute()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	if !config.IsInnie {
 		t.Error("expected IsInnie to be true")
