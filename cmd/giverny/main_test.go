@@ -234,23 +234,7 @@ func TestIsWorkspaceDirty_CleanWorkspace(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Initialize a git repository
-	cmd := exec.Command("git", "init")
-	cmd.Dir = tmpDir
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to init git repo: %v", err)
-	}
-
-	// Configure git
-	exec.Command("git", "-C", tmpDir, "config", "user.email", "test@example.com").Run()
-	exec.Command("git", "-C", tmpDir, "config", "user.name", "Test User").Run()
-
-	// Create an initial commit
-	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
-		t.Fatalf("failed to create test file: %v", err)
-	}
-	exec.Command("git", "-C", tmpDir, "add", ".").Run()
-	exec.Command("git", "-C", tmpDir, "commit", "-m", "initial commit").Run()
+	initTestRepo(t, tmpDir)
 
 	// Test isWorkspaceDirty by changing to the temp directory
 	originalDir, _ := os.Getwd()
@@ -343,25 +327,10 @@ func TestIsWorkspaceDirty_DirtyWorkspace(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Initialize a git repository
-	cmd := exec.Command("git", "init")
-	cmd.Dir = tmpDir
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to init git repo: %v", err)
-	}
-
-	// Configure git
-	exec.Command("git", "-C", tmpDir, "config", "user.email", "test@example.com").Run()
-	exec.Command("git", "-C", tmpDir, "config", "user.name", "Test User").Run()
-
-	// Create an initial commit
-	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
-		t.Fatalf("failed to create test file: %v", err)
-	}
-	exec.Command("git", "-C", tmpDir, "add", ".").Run()
-	exec.Command("git", "-C", tmpDir, "commit", "-m", "initial commit").Run()
+	initTestRepo(t, tmpDir)
 
 	// Make a change without committing
+	testFile := filepath.Join(tmpDir, "test.txt")
 	if err := os.WriteFile(testFile, []byte("modified"), 0644); err != nil {
 		t.Fatalf("failed to modify test file: %v", err)
 	}

@@ -3,7 +3,6 @@ package git
 import (
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -17,23 +16,7 @@ func TestCreateBranch(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Initialize git repo
-	cmd := exec.Command("git", "init")
-	cmd.Dir = tmpDir
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to init git repo: %v", err)
-	}
-
-	// Configure git user for the test repo
-	exec.Command("git", "-C", tmpDir, "config", "user.email", "test@example.com").Run()
-	exec.Command("git", "-C", tmpDir, "config", "user.name", "Test User").Run()
-
-	// Create an initial commit
-	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
-		t.Fatalf("failed to create test file: %v", err)
-	}
-	exec.Command("git", "-C", tmpDir, "add", ".").Run()
-	exec.Command("git", "-C", tmpDir, "commit", "-m", "initial commit").Run()
+	initTestRepo(t, tmpDir)
 
 	// Change to temp directory for tests
 	origDir, err := os.Getwd()

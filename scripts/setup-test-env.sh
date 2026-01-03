@@ -15,6 +15,7 @@ mkdir -p "$GIV_TEST_ENV_DIR"
 # Initialize a git repository for testing
 cd "$GIV_TEST_ENV_DIR"
 git init
+git config init.defaultBranch main
 git config user.email "test@giverny.test"
 git config user.name "Giverny Test"
 

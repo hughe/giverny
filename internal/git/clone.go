@@ -18,14 +18,21 @@ func CloneRepo(gitServerPort int) error {
 // Uses --no-checkout to create a bare-like clone that can be checked out later.
 // Returns an error if the clone fails.
 func CloneRepoToDir(gitServerPort int, gitDir string) error {
+	return CloneRepoFromHost(gitServerPort, gitDir, "host.docker.internal")
+}
+
+// CloneRepoFromHost clones a repository from the specified host and port into the specified directory.
+// Uses --no-checkout to create a bare-like clone that can be checked out later.
+// Returns an error if the clone fails.
+func CloneRepoFromHost(gitServerPort int, gitDir string, host string) error {
 	// Create directory
 	if err := os.MkdirAll(gitDir, 0755); err != nil {
 		return fmt.Errorf("failed to create %s directory: %w", gitDir, err)
 	}
 
-	// Clone from host.docker.internal
+	// Clone from the specified host
 	// Docker provides host.docker.internal as a special DNS name that resolves to the host
-	repoURL := fmt.Sprintf("git://host.docker.internal:%d/", gitServerPort)
+	repoURL := fmt.Sprintf("git://%s:%d/", host, gitServerPort)
 
 	// Run git clone with --no-checkout
 	cmd := exec.Command("git", "clone", "--no-checkout", repoURL, gitDir)
