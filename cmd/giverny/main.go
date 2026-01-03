@@ -380,9 +380,17 @@ func postClaudeMenu() error {
 
 // startShell starts an interactive shell in /app
 func startShell() error {
-	fmt.Println("Starting shell in /app (type 'exit' to return to menu)...")
+	// Determine which shell to use (prefer zsh, then bash, then sh)
+	shell := "/bin/sh"
+	if _, err := os.Stat("/bin/zsh"); err == nil {
+		shell = "/bin/zsh"
+	} else if _, err := os.Stat("/bin/bash"); err == nil {
+		shell = "/bin/bash"
+	}
 
-	cmd := exec.Command("/bin/sh")
+	fmt.Printf("Starting %s in /app (type 'exit' to return to menu)...\n", shell)
+
+	cmd := exec.Command(shell)
 	cmd.Dir = "/app"
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
