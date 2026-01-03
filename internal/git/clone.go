@@ -11,8 +11,14 @@ import (
 // Uses --no-checkout to create a bare-like clone that can be checked out later.
 // Returns an error if the clone fails.
 func CloneRepo(gitServerPort int) error {
-	// Create /git directory
-	gitDir := "/git"
+	return CloneRepoToDir(gitServerPort, "/git")
+}
+
+// CloneRepoToDir clones a repository from the git server into the specified directory.
+// Uses --no-checkout to create a bare-like clone that can be checked out later.
+// Returns an error if the clone fails.
+func CloneRepoToDir(gitServerPort int, gitDir string) error {
+	// Create directory
 	if err := os.MkdirAll(gitDir, 0755); err != nil {
 		return fmt.Errorf("failed to create %s directory: %w", gitDir, err)
 	}
