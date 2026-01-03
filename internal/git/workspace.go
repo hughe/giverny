@@ -22,6 +22,17 @@ func SetupWorkspace(branchName string) error {
 	}
 	fmt.Printf("Checked out branch %s to /app\n", branchName)
 
+	// Configure git user for commits
+	cmd = exec.Command("git", "-C", "/app", "config", "user.email", "noreply@anthropic.com")
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to set git user.email: %w", err)
+	}
+
+	cmd = exec.Command("git", "-C", "/app", "config", "user.name", "Claude Code")
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to set git user.name: %w", err)
+	}
+
 	// Create START label branch to mark where we started
 	startLabel := branchName + "-START"
 	cmd = exec.Command("git", "-C", "/app", "branch", startLabel)
