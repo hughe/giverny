@@ -232,6 +232,12 @@ func runOutie(config Config) error {
 		fmt.Fprintf(os.Stderr, "Warning: failed to remove container: %v\n", err)
 	}
 
+	// Print merge instructions
+	fmt.Printf("\nTo merge the changes into your main branch:\n")
+	fmt.Printf("  git merge --ff-only %s\n", branchName)
+	fmt.Printf("\nTo delete the branch after merging:\n")
+	fmt.Printf("  git branch -d %s\n", branchName)
+
 	return nil
 }
 
