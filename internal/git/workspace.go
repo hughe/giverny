@@ -7,7 +7,7 @@ import (
 )
 
 // SetupWorkspace creates /app, checks out the branch, and creates a START label
-func SetupWorkspace(branchName string) error {
+func SetupWorkspace(branchName string, debug bool) error {
 	// Create /app directory
 	if err := os.MkdirAll("/app", 0755); err != nil {
 		return fmt.Errorf("failed to create /app directory: %w", err)
@@ -15,12 +15,16 @@ func SetupWorkspace(branchName string) error {
 
 	// Checkout the branch to /app using git worktree
 	cmd := exec.Command("git", "-C", "/git", "worktree", "add", "/app", branchName)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	if debug {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to checkout branch %s to /app: %w", branchName, err)
 	}
-	fmt.Printf("Checked out branch %s to /app\n", branchName)
+	if debug {
+		fmt.Printf("Checked out branch %s to /app\n", branchName)
+	}
 
 	// Configure git user for commits
 	cmd = exec.Command("git", "-C", "/app", "config", "user.email", "noreply@anthropic.com")
@@ -39,7 +43,9 @@ func SetupWorkspace(branchName string) error {
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to create START label branch %s: %w", startLabel, err)
 	}
-	fmt.Printf("Created START label: %s\n", startLabel)
+	if debug {
+		fmt.Printf("Created START label: %s\n", startLabel)
+	}
 
 	return nil
 }

@@ -128,7 +128,7 @@ type DockerfileData struct {
 // It creates a temporary directory, extracts embedded source code,
 // generates the Dockerfile, builds the image, optionally streams output
 // to stdout based on showOutput, and cleans up.
-func BuildImage(baseImage string, showOutput bool) error {
+func BuildImage(baseImage string, showOutput bool, debug bool) error {
 	// Create temporary directory
 	tmpDir, err := os.MkdirTemp("", "giverny-build-*")
 	if err != nil {
@@ -152,7 +152,9 @@ func BuildImage(baseImage string, showOutput bool) error {
 	}
 
 	// Build Docker image using temp directory as build context
-	fmt.Println("Building giverny image...")
+	if debug {
+		fmt.Println("Building giverny image...")
+	}
 	cmd := exec.Command("docker", "build",
 		"-f", dockerfilePath,
 		"-t", "giverny-main:latest",
@@ -169,7 +171,9 @@ func BuildImage(baseImage string, showOutput bool) error {
 		return fmt.Errorf("docker build failed: %w", err)
 	}
 
-	fmt.Println("Successfully built giverny-main:latest")
+	if debug {
+		fmt.Println("Successfully built giverny-main:latest")
+	}
 	return nil
 }
 

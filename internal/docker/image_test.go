@@ -117,7 +117,7 @@ func TestBuildImage_IntegrationTest(t *testing.T) {
 	EmbeddedSource = giverny.Source
 
 	// Build the image
-	err := BuildImage("alpine:latest", true)
+	err := BuildImage("alpine:latest", true, false)
 	if err != nil {
 		t.Fatalf("BuildImage failed: %v", err)
 	}

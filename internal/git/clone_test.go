@@ -34,7 +34,7 @@ func TestCloneRepo(t *testing.T) {
 	gitDir := t.TempDir()
 
 	// Clone from the local git server using localhost
-	err = CloneRepoFromHost(port, gitDir, "localhost")
+	err = CloneRepoFromHost(port, gitDir, "localhost", false)
 	if err != nil {
 		t.Errorf("CloneRepoFromHost failed: %v", err)
 	}

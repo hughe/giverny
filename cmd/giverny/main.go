@@ -187,18 +187,22 @@ func runOutie(config Config) error {
 			fmt.Fprintf(os.Stderr, "Warning: failed to stop git server: %v\n", err)
 		}
 	}()
-	fmt.Printf("Started git server on port: %d\n", gitPort)
+	if config.Debug {
+		fmt.Printf("Started git server on port: %d\n", gitPort)
+	}
 
 	// Build giverny Docker image
-	if err := docker.BuildImage(config.BaseImage, config.ShowBuildOutput); err != nil {
+	if err := docker.BuildImage(config.BaseImage, config.ShowBuildOutput, config.Debug); err != nil {
 		return fmt.Errorf("failed to build image: %w", err)
 	}
 
-	fmt.Printf("Running Outie for task: %s\n", config.TaskID)
-	fmt.Printf("Prompt: %s\n", config.Prompt)
-	fmt.Printf("Base image: %s\n", config.BaseImage)
-	if config.DockerArgs != "" {
-		fmt.Printf("Docker args: %s\n", config.DockerArgs)
+	if config.Debug {
+		fmt.Printf("Running Outie for task: %s\n", config.TaskID)
+		fmt.Printf("Prompt: %s\n", config.Prompt)
+		fmt.Printf("Base image: %s\n", config.BaseImage)
+		if config.DockerArgs != "" {
+			fmt.Printf("Docker args: %s\n", config.DockerArgs)
+		}
 	}
 
 	// Run the container with Innie
@@ -227,7 +231,9 @@ func runOutie(config Config) error {
 
 	// On success: remove container, print success
 	fmt.Printf("\n✓ Task completed successfully\n")
-	fmt.Printf("Removing container...\n")
+	if config.Debug {
+		fmt.Printf("Removing container...\n")
+	}
 	if err := docker.RemoveContainer(containerName); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: failed to remove container: %v\n", err)
 	}
@@ -242,16 +248,22 @@ func runOutie(config Config) error {
 }
 
 func runInnie(config Config) error {
-	fmt.Printf("Running Innie for task: %s\n", config.TaskID)
-	fmt.Printf("Prompt: %s\n", config.Prompt)
-	fmt.Printf("Git server port: %d\n", config.GitServerPort)
+	if config.Debug {
+		fmt.Printf("Running Innie for task: %s\n", config.TaskID)
+		fmt.Printf("Prompt: %s\n", config.Prompt)
+		fmt.Printf("Git server port: %d\n", config.GitServerPort)
+	}
 
 	// Clone the repository from Outie's git server
-	fmt.Printf("Cloning repository from git server...\n")
-	if err := git.CloneRepo(config.GitServerPort); err != nil {
+	if config.Debug {
+		fmt.Printf("Cloning repository from git server...\n")
+	}
+	if err := git.CloneRepo(config.GitServerPort, config.Debug); err != nil {
 		return fmt.Errorf("failed to clone repository: %w", err)
 	}
-	fmt.Printf("Repository cloned successfully to /git\n")
+	if config.Debug {
+		fmt.Printf("Repository cloned successfully to /git\n")
+	}
 
 	// List /git directory contents to verify clone (debug mode only)
 	if config.Debug {
@@ -266,7 +278,7 @@ func runInnie(config Config) error {
 
 	// Set up workspace in /app
 	branchName := fmt.Sprintf("giverny/%s", config.TaskID)
-	if err := git.SetupWorkspace(branchName); err != nil {
+	if err := git.SetupWorkspace(branchName, config.Debug); err != nil {
 		return fmt.Errorf("failed to setup workspace: %w", err)
 	}
 
@@ -358,10 +370,12 @@ func initializeBeads() error {
 
 // executeClaude runs Claude Code with the given prompt in /app
 func executeClaude(prompt string, interactive bool) error {
-	if interactive {
-		fmt.Printf("Executing Claude Code...\n")
-	} else {
-		fmt.Printf("Executing Claude Code in non-interactive mode...\n")
+	if config.Debug {
+		if interactive {
+			fmt.Printf("Executing Claude Code...\n")
+		} else {
+			fmt.Printf("Executing Claude Code in non-interactive mode...\n")
+		}
 	}
 
 	args := []string{"--dangerously-skip-permissions", "--allow-dangerously-skip-permissions"}
