@@ -1,4 +1,4 @@
-.PHONY: all build clean test test-binary run install image
+.PHONY: all build clean test test-binary integration-test run install image
 
 all: build
 
@@ -46,6 +46,16 @@ test-binary: build
 	./scripts/teardown-test-env.sh; \
 	exit $$TEST_RESULT)
 
+# Run integration tests with environment setup and teardown
+# Pass additional arguments via GO_TEST_ARGS env var
+integration-test:
+	@echo "Setting up test environment..."
+	@export GIV_TEST_ENV_DIR=$(GIV_TEST_ENV_DIR) && \
+	./scripts/setup-test-env.sh && \
+	(INTEGRATION_TEST=1 GIV_TEST_ENV_DIR=$$GIV_TEST_ENV_DIR go test -v $(GO_TEST_ARGS) ./...; TEST_RESULT=$$?; \
+	./scripts/teardown-test-env.sh; \
+	exit $$TEST_RESULT)
+
 # Install to $GOPATH/bin
 install:
 	@echo "Installing $(BINARY_NAME)..."
@@ -68,11 +78,12 @@ image:
 # Show help
 help:
 	@echo "Available targets:"
-	@echo "  build          - Build the binary"
-	@echo "  clean          - Remove build artifacts"
-	@echo "  test           - Run tests with environment setup/teardown"
-	@echo "  test-binary    - Test the giverny binary"
-	@echo "  install        - Install to GOPATH/bin"
-	@echo "  fmt            - Format code"
-	@echo "  lint           - Run linter"
-	@echo "  help           - Show this help message"
+	@echo "  build            - Build the binary"
+	@echo "  clean            - Remove build artifacts"
+	@echo "  test             - Run tests with environment setup/teardown"
+	@echo "  test-binary      - Test the giverny binary"
+	@echo "  integration-test - Run integration tests with INTEGRATION_TEST=1"
+	@echo "  install          - Install to GOPATH/bin"
+	@echo "  fmt              - Format code"
+	@echo "  lint             - Run linter"
+	@echo "  help             - Show this help message"
