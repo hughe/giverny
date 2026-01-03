@@ -139,15 +139,15 @@ func TestBuildImage_IntegrationTest(t *testing.T) {
 		t.Errorf("diffreviewer not installed in expected location, got: %s", output)
 	}
 
-	// Verify beads binary exists in the image
+	// Verify beads wrapper exists in the image
 	cmd = exec.Command("docker", "run", "--rm", "giverny-main:latest", "which", "bd")
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("bd not found in image: %v, output: %s", err, output)
 	}
 
-	if !strings.Contains(string(output), "/usr/local/bin/bd") {
-		t.Errorf("bd not installed in expected location, got: %s", output)
+	if !strings.Contains(string(output), "/usr/local/sbin/bd") {
+		t.Errorf("bd wrapper not installed in expected location, got: %s", output)
 	}
 
 	// Clean up - remove the test image

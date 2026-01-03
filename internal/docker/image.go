@@ -96,6 +96,25 @@ COPY --from=diffreviewer-builder /output/diffreviewer /usr/local/bin/diffreviewe
 # Copy beads binary from beads-builder stage
 COPY --from=beads-builder /output/bd /usr/local/bin/bd
 
+# Create bd wrapper script in /usr/local/sbin (earlier in PATH)
+COPY <<'EOF' /usr/local/sbin/bd
+#!/bin/bash
+# Wrapper script for bd that automatically adds --sandbox flag
+# This ensures bd runs in sandbox mode by default in the Giverny environment
+
+# Check if --db flag is present in arguments
+for arg in "$@"; do
+    if [[ "$arg" == "--db" ]]; then
+        echo "Error: --db flag is not allowed in this environment" >&2
+        exit 1
+    fi
+done
+
+# Call the real bd with --sandbox prepended to arguments
+exec /usr/local/bin/bd --sandbox "$@"
+EOF
+RUN chmod +x /usr/local/sbin/bd
+
 # Set working directory
 WORKDIR /app
 `
