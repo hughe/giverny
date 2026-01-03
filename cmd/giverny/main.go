@@ -275,6 +275,12 @@ func runInnie(config Config) error {
 		return fmt.Errorf("failed to change to /app directory: %w", err)
 	}
 
+	// Initialize beads if .beads directory exists and bd is available
+	if err := initializeBeads(); err != nil {
+		// Log warning but don't fail - beads initialization is optional
+		fmt.Fprintf(os.Stderr, "Warning: beads initialization failed: %v\n", err)
+	}
+
 	// Execute Claude Code with the prompt
 	if err := executeClaude(config.Prompt, true); err != nil {
 		return fmt.Errorf("failed to execute Claude: %w", err)
@@ -290,6 +296,63 @@ func runInnie(config Config) error {
 		return fmt.Errorf("failed to push branch: %w", err)
 	}
 
+	return nil
+}
+
+// initializeBeads initializes the beads database if .beads directory exists and bd is available
+func initializeBeads() error {
+	// Check if .beads directory exists
+	beadsPath := "/app/.beads"
+	if _, err := os.Stat(beadsPath); os.IsNotExist(err) {
+		// .beads directory doesn't exist, skip initialization
+		return nil
+	}
+
+	// Check if bd command is available
+	if _, err := exec.LookPath("bd"); err != nil {
+		// bd is not available, skip initialization
+		return nil
+	}
+
+	// Check if AGENTS.md exists before running bd init
+	agentsPath := "/app/AGENTS.md"
+	_, err := os.Stat(agentsPath)
+	agentsExistedBefore := err == nil
+
+	fmt.Println("Initializing beads database...")
+
+	// Run bd init
+	cmd := exec.Command("bd", "init")
+	cmd.Dir = "/app"
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("bd init failed: %w", err)
+	}
+
+	// Handle AGENTS.md based on whether it existed before
+	if _, err := os.Stat(agentsPath); err == nil {
+		// AGENTS.md exists after bd init
+		if agentsExistedBefore {
+			// It existed before, restore it from git
+			fmt.Println("Restoring AGENTS.md from git...")
+			cmd := exec.Command("git", "restore", "AGENTS.md")
+			cmd.Dir = "/app"
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				return fmt.Errorf("failed to restore AGENTS.md: %w", err)
+			}
+		} else {
+			// It didn't exist before, delete what bd init created
+			fmt.Println("Deleting AGENTS.md created by bd init...")
+			if err := os.Remove(agentsPath); err != nil {
+				return fmt.Errorf("failed to delete AGENTS.md: %w", err)
+			}
+		}
+	}
+
+	fmt.Println("Beads initialization completed")
 	return nil
 }
 
