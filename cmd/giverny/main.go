@@ -241,6 +241,22 @@ func runOutie(config Config) error {
 	// Print merge instructions
 	fmt.Printf("\nTo merge the changes into your main branch:\n")
 	fmt.Printf("  git merge --ff-only %s\n", branchName)
+
+	// Get commit range for cherry-pick instructions
+	firstCommit, lastCommit, err := git.GetBranchCommitRange(branchName)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to get commit range: %v\n", err)
+	} else if firstCommit != "" && lastCommit != "" {
+		fmt.Printf("\nOr to cherry-pick the changes:\n")
+		if firstCommit == lastCommit {
+			// Only one commit
+			fmt.Printf("  git cherry-pick %s\n", firstCommit)
+		} else {
+			// Multiple commits
+			fmt.Printf("  git cherry-pick %s^..%s\n", firstCommit, lastCommit)
+		}
+	}
+
 	fmt.Printf("\nTo delete the branch after merging:\n")
 	fmt.Printf("  git branch -d %s\n", branchName)
 
