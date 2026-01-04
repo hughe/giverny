@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"giverny/internal/git"
+	"giverny/internal/outie"
 )
 
 func TestMain(m *testing.M) {
@@ -67,14 +68,17 @@ func TestRunOutie_ValidatesClaudeToken(t *testing.T) {
 				os.Unsetenv("CLAUDE_CODE_OAUTH_TOKEN")
 			}
 
-			// Test runOutie
-			config := Config{
-				TaskID:    "test-task",
-				Prompt:    "test prompt",
-				BaseImage: "debian:stable",
+			// Test outie.Run
+			outieConfig := outie.Config{
+				TaskID:          "test-task",
+				Prompt:          "test prompt",
+				BaseImage:       "debian:stable",
+				DockerArgs:      "",
+				Debug:           false,
+				ShowBuildOutput: false,
 			}
 
-			err := runOutie(config)
+			err := outie.Run(outieConfig)
 
 			if tt.shouldError && err == nil {
 				t.Error("expected error but got nil")
