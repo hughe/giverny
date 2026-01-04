@@ -1,0 +1,7 @@
+{
+  "last_failure": "2026-01-03T19:52:03.324479-07:00",
+  "failure_count": 1,
+  "backoff_until": "2026-01-03T19:52:33.324482-07:00",
+  "needs_manual_sync": false,
+  "failure_reason": "git pull failed in worktree: exit status 128\nFrom github.com:hughe/giverny\n * branch            main       -\u003e FETCH_HEAD\nwarning: fetch updated the current branch head.\nfast-forwarding your working tree from\ncommit 6ec5cba55470bf2023aa39ae3fbbf8d88a7b9298.\nerror: Your local changes to the following files would be overwritten by merge:\n\t.beads/last-touched\n\tcmd/giverny/main.go\n\tinternal/docker/image.go\n\tinternal/docker/image_test.go\n\tinternal/git/clone.go\n\tinternal/git/clone_test.go\n\tinternal/git/workspace.go\nPlease commit your changes or stash them before you merge.\nAborting\nfatal: Cannot fast-forward your working tree.\nAfter making sure that you saved anything precious from\n$ git diff 6ec5cba55470bf2023aa39ae3fbbf8d88a7b9298\noutput, run\n$ git reset --hard\nto recover.\n"
+}
