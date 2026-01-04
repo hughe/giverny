@@ -331,13 +331,17 @@ func initializeBeads() error {
 	_, err := os.Stat(agentsPath)
 	agentsExistedBefore := err == nil
 
-	fmt.Println("Initializing beads database...")
+	if config.Debug {
+		fmt.Println("Initializing beads database...")
+	}
 
 	// Run bd init
 	cmd := exec.Command("bd", "init")
 	cmd.Dir = "/app"
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	if config.Debug {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("bd init failed: %w", err)
 	}
@@ -347,24 +351,32 @@ func initializeBeads() error {
 		// AGENTS.md exists after bd init
 		if agentsExistedBefore {
 			// It existed before, restore it from git
-			fmt.Println("Restoring AGENTS.md from git...")
+			if config.Debug {
+				fmt.Println("Restoring AGENTS.md from git...")
+			}
 			cmd := exec.Command("git", "restore", "AGENTS.md")
 			cmd.Dir = "/app"
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
+			if config.Debug {
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+			}
 			if err := cmd.Run(); err != nil {
 				return fmt.Errorf("failed to restore AGENTS.md: %w", err)
 			}
 		} else {
 			// It didn't exist before, delete what bd init created
-			fmt.Println("Deleting AGENTS.md created by bd init...")
+			if config.Debug {
+				fmt.Println("Deleting AGENTS.md created by bd init...")
+			}
 			if err := os.Remove(agentsPath); err != nil {
 				return fmt.Errorf("failed to delete AGENTS.md: %w", err)
 			}
 		}
 	}
 
-	fmt.Println("Beads initialization completed")
+	if config.Debug {
+		fmt.Println("Beads initialization completed")
+	}
 	return nil
 }
 
