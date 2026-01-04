@@ -17,7 +17,10 @@ var EmbeddedSource embed.FS
 // DiffreviewerVersion specifies the version of diffreviewer to install
 const DiffreviewerVersion = "v0.1.1"
 
-const dockerfileTemplate = `# Stage 1: Build giverny binary
+const dockerfileDepsTemplate = `# Multi-stage build for Giverny dependencies
+# This builds the giverny binary, diffreviewer, and beads
+
+# Stage 1: Build giverny binary
 FROM golang:alpine AS builder
 
 # Install build dependencies
@@ -69,7 +72,21 @@ RUN go install github.com/steveyegge/beads/cmd/bd@latest && \
 # Verify the binary was created
 RUN test -f /output/bd
 
-# Stage 4: Final image with dependencies
+# Stage 4: Collect all binaries in a single stage
+FROM alpine:latest
+
+# Copy all binaries
+COPY --from=builder /output/giverny /output/giverny
+COPY --from=diffreviewer-builder /output/diffreviewer /output/diffreviewer
+COPY --from=beads-builder /output/bd /output/bd
+
+# Verify all binaries are present
+RUN test -f /output/giverny && \
+    test -f /output/diffreviewer && \
+    test -f /output/bd
+`
+
+const dockerfileMainTemplate = `# Final Giverny image with dependencies from giverny-deps
 FROM {{.BaseImage}}
 
 # Install git if not present
@@ -87,14 +104,10 @@ RUN command -v node >/dev/null 2>&1 || \
 # Install Claude Code
 RUN npm install -g @anthropic-ai/claude-code
 
-# Copy giverny binary from builder stage
-COPY --from=builder /output/giverny /usr/local/bin/giverny
-
-# Copy diffreviewer binary from diffreviewer-builder stage
-COPY --from=diffreviewer-builder /output/diffreviewer /usr/local/bin/diffreviewer
-
-# Copy beads binary from beads-builder stage
-COPY --from=beads-builder /output/bd /usr/local/bin/bd
+# Copy binaries from giverny-deps image
+COPY --from=giverny-deps:latest /output/giverny /usr/local/bin/giverny
+COPY --from=giverny-deps:latest /output/diffreviewer /usr/local/bin/diffreviewer
+COPY --from=giverny-deps:latest /output/bd /usr/local/bin/bd
 
 # Create bd wrapper script in /usr/local/sbin (earlier in PATH)
 COPY <<'EOF' /usr/local/sbin/bd
@@ -102,8 +115,12 @@ COPY <<'EOF' /usr/local/sbin/bd
 # Wrapper script for bd that automatically adds --sandbox and --no-db flag
 # This ensures bd runs in sandbox mode by default in the Giverny environment
 
-# Check if --db flag is present in arguments
+# Check if 'sync' command or --db flag is present in arguments
 for arg in "$@"; do
+    if [[ "$arg" == "sync" ]]; then
+        echo "Don't sync in containers" >&2
+        exit 1
+    fi
     if [[ "$arg" == "--db" ]]; then
         echo "Error: --db flag is not allowed in this environment" >&2
         exit 1
@@ -124,9 +141,11 @@ type DockerfileData struct {
 	DiffreviewerVersion string
 }
 
-// BuildImage builds the giverny Docker image using a multistage Dockerfile.
+// BuildImage builds the giverny Docker images using two separate Dockerfiles.
+// First it builds giverny-deps with all the dependencies (giverny binary, diffreviewer, beads).
+// Then it builds giverny-main which uses the deps image and adds the base image components.
 // It creates a temporary directory, extracts embedded source code,
-// generates the Dockerfile, builds the image, optionally streams output
+// generates both Dockerfiles, builds both images, optionally streams output
 // to stdout based on showOutput, and cleans up.
 func BuildImage(baseImage string, showOutput bool, debug bool) error {
 	// Create temporary directory
@@ -141,34 +160,72 @@ func BuildImage(baseImage string, showOutput bool, debug bool) error {
 		return fmt.Errorf("failed to extract embedded source: %w", err)
 	}
 
-	// Generate Dockerfile
-	dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
-	data := DockerfileData{
+	// Build giverny-deps image first
+	if debug {
+		fmt.Println("Building giverny-deps image...")
+	}
+
+	// Generate Dockerfile.deps
+	dockerfileDepsPath := filepath.Join(tmpDir, "Dockerfile.deps")
+	depsData := DockerfileData{
 		BaseImage:           baseImage,
 		DiffreviewerVersion: DiffreviewerVersion,
 	}
-	if err := generateDockerfile(dockerfilePath, dockerfileTemplate, data); err != nil {
-		return fmt.Errorf("failed to generate Dockerfile: %w", err)
+	if err := generateDockerfile(dockerfileDepsPath, dockerfileDepsTemplate, depsData); err != nil {
+		return fmt.Errorf("failed to generate Dockerfile.deps: %w", err)
 	}
 
-	// Build Docker image using temp directory as build context
-	if debug {
-		fmt.Println("Building giverny image...")
+	// Build giverny-deps image
+	depsBuildCmd := exec.Command("docker", "build",
+		"-f", dockerfileDepsPath,
+		"-t", "giverny-deps:latest",
+		tmpDir,
+	)
+
+	// Conditionally stream output to stdout/stderr
+	if showOutput {
+		depsBuildCmd.Stdout = os.Stdout
+		depsBuildCmd.Stderr = os.Stderr
 	}
-	cmd := exec.Command("docker", "build",
-		"-f", dockerfilePath,
+
+	if err := depsBuildCmd.Run(); err != nil {
+		return fmt.Errorf("docker build failed for giverny-deps: %w", err)
+	}
+
+	if debug {
+		fmt.Println("Successfully built giverny-deps:latest")
+	}
+
+	// Build giverny-main image
+	if debug {
+		fmt.Println("Building giverny-main image...")
+	}
+
+	// Generate Dockerfile.main
+	dockerfileMainPath := filepath.Join(tmpDir, "Dockerfile.main")
+	mainData := DockerfileData{
+		BaseImage:           baseImage,
+		DiffreviewerVersion: DiffreviewerVersion,
+	}
+	if err := generateDockerfile(dockerfileMainPath, dockerfileMainTemplate, mainData); err != nil {
+		return fmt.Errorf("failed to generate Dockerfile.main: %w", err)
+	}
+
+	// Build giverny-main image
+	mainBuildCmd := exec.Command("docker", "build",
+		"-f", dockerfileMainPath,
 		"-t", "giverny-main:latest",
 		tmpDir,
 	)
 
 	// Conditionally stream output to stdout/stderr
 	if showOutput {
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		mainBuildCmd.Stdout = os.Stdout
+		mainBuildCmd.Stderr = os.Stderr
 	}
 
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("docker build failed: %w", err)
+	if err := mainBuildCmd.Run(); err != nil {
+		return fmt.Errorf("docker build failed for giverny-main: %w", err)
 	}
 
 	if debug {

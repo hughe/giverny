@@ -16,53 +16,99 @@ func TestGenerateDockerfile(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
-	data := DockerfileData{
-		BaseImage:           "ubuntu:22.04",
-		DiffreviewerVersion: "v0.1.1",
-	}
-
-	err = generateDockerfile(dockerfilePath, dockerfileTemplate, data)
-	if err != nil {
-		t.Fatalf("generateDockerfile failed: %v", err)
-	}
-
-	// Verify file was created
-	if _, err := os.Stat(dockerfilePath); os.IsNotExist(err) {
-		t.Fatal("Dockerfile was not created")
-	}
-
-	// Read and verify content contains base image
-	content, err := os.ReadFile(dockerfilePath)
-	if err != nil {
-		t.Fatalf("failed to read Dockerfile: %v", err)
-	}
-
-	contentStr := string(content)
-	if len(contentStr) == 0 {
-		t.Fatal("Dockerfile is empty")
-	}
-
-	// Check for expected content
-	expectedStrings := []string{
-		"FROM golang:alpine AS builder",
-		"FROM golang:alpine AS diffreviewer-builder",
-		"FROM golang:alpine AS beads-builder",
-		"apk add --no-cache git curl nodejs npm make",
-		"RUN make",
-		"go install github.com/steveyegge/beads/cmd/bd@latest",
-		"FROM ubuntu:22.04",
-		"COPY --from=builder",
-		"COPY --from=diffreviewer-builder",
-		"COPY --from=beads-builder",
-		"v0.1.1",
-	}
-
-	for _, expected := range expectedStrings {
-		if !strings.Contains(contentStr, expected) {
-			t.Errorf("Dockerfile missing expected content: %s", expected)
+	t.Run("deps dockerfile", func(t *testing.T) {
+		dockerfilePath := filepath.Join(tmpDir, "Dockerfile.deps")
+		data := DockerfileData{
+			BaseImage:           "ubuntu:22.04",
+			DiffreviewerVersion: "v0.1.1",
 		}
-	}
+
+		err = generateDockerfile(dockerfilePath, dockerfileDepsTemplate, data)
+		if err != nil {
+			t.Fatalf("generateDockerfile failed: %v", err)
+		}
+
+		// Verify file was created
+		if _, err := os.Stat(dockerfilePath); os.IsNotExist(err) {
+			t.Fatal("Dockerfile.deps was not created")
+		}
+
+		// Read and verify content
+		content, err := os.ReadFile(dockerfilePath)
+		if err != nil {
+			t.Fatalf("failed to read Dockerfile.deps: %v", err)
+		}
+
+		contentStr := string(content)
+		if len(contentStr) == 0 {
+			t.Fatal("Dockerfile.deps is empty")
+		}
+
+		// Check for expected content in deps dockerfile
+		expectedStrings := []string{
+			"FROM golang:alpine AS builder",
+			"FROM golang:alpine AS diffreviewer-builder",
+			"FROM golang:alpine AS beads-builder",
+			"apk add --no-cache git curl nodejs npm make",
+			"RUN make",
+			"go install github.com/steveyegge/beads/cmd/bd@latest",
+			"FROM alpine:latest",
+			"COPY --from=builder /output/giverny /output/giverny",
+			"COPY --from=diffreviewer-builder /output/diffreviewer /output/diffreviewer",
+			"COPY --from=beads-builder /output/bd /output/bd",
+			"v0.1.1",
+		}
+
+		for _, expected := range expectedStrings {
+			if !strings.Contains(contentStr, expected) {
+				t.Errorf("Dockerfile.deps missing expected content: %s", expected)
+			}
+		}
+	})
+
+	t.Run("main dockerfile", func(t *testing.T) {
+		dockerfilePath := filepath.Join(tmpDir, "Dockerfile.main")
+		data := DockerfileData{
+			BaseImage:           "ubuntu:22.04",
+			DiffreviewerVersion: "v0.1.1",
+		}
+
+		err = generateDockerfile(dockerfilePath, dockerfileMainTemplate, data)
+		if err != nil {
+			t.Fatalf("generateDockerfile failed: %v", err)
+		}
+
+		// Verify file was created
+		if _, err := os.Stat(dockerfilePath); os.IsNotExist(err) {
+			t.Fatal("Dockerfile.main was not created")
+		}
+
+		// Read and verify content
+		content, err := os.ReadFile(dockerfilePath)
+		if err != nil {
+			t.Fatalf("failed to read Dockerfile.main: %v", err)
+		}
+
+		contentStr := string(content)
+		if len(contentStr) == 0 {
+			t.Fatal("Dockerfile.main is empty")
+		}
+
+		// Check for expected content in main dockerfile
+		expectedStrings := []string{
+			"FROM ubuntu:22.04",
+			"COPY --from=giverny-deps:latest /output/giverny",
+			"COPY --from=giverny-deps:latest /output/diffreviewer",
+			"COPY --from=giverny-deps:latest /output/bd",
+			"npm install -g @anthropic-ai/claude-code",
+		}
+
+		for _, expected := range expectedStrings {
+			if !strings.Contains(contentStr, expected) {
+				t.Errorf("Dockerfile.main missing expected content: %s", expected)
+			}
+		}
+	})
 }
 
 func TestGenerateDockerfileWithInvalidPath(t *testing.T) {
@@ -71,7 +117,7 @@ func TestGenerateDockerfileWithInvalidPath(t *testing.T) {
 		BaseImage:           "ubuntu:22.04",
 		DiffreviewerVersion: "v0.1.1",
 	}
-	err := generateDockerfile(invalidPath, dockerfileTemplate, data)
+	err := generateDockerfile(invalidPath, dockerfileDepsTemplate, data)
 	if err == nil {
 		t.Fatal("expected error for invalid path, got nil")
 	}
@@ -84,13 +130,13 @@ func TestGenerateDockerfileWithDifferentBaseImage(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
+	dockerfilePath := filepath.Join(tmpDir, "Dockerfile.main")
 	data := DockerfileData{
 		BaseImage:           "alpine:latest",
 		DiffreviewerVersion: "v0.1.1",
 	}
 
-	err = generateDockerfile(dockerfilePath, dockerfileTemplate, data)
+	err = generateDockerfile(dockerfilePath, dockerfileMainTemplate, data)
 	if err != nil {
 		t.Fatalf("generateDockerfile failed: %v", err)
 	}
@@ -150,6 +196,7 @@ func TestBuildImage_IntegrationTest(t *testing.T) {
 		t.Errorf("bd wrapper not installed in expected location, got: %s", output)
 	}
 
-	// Clean up - remove the test image
+	// Clean up - remove the test images
+	exec.Command("docker", "rmi", "giverny-deps:latest").Run()
 	exec.Command("docker", "rmi", "giverny-main:latest").Run()
 }
