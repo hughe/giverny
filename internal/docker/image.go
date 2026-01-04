@@ -99,7 +99,7 @@ COPY --from=beads-builder /output/bd /usr/local/bin/bd
 # Create bd wrapper script in /usr/local/sbin (earlier in PATH)
 COPY <<'EOF' /usr/local/sbin/bd
 #!/bin/bash
-# Wrapper script for bd that automatically adds --sandbox flag
+# Wrapper script for bd that automatically adds --sandbox and --no-db flag
 # This ensures bd runs in sandbox mode by default in the Giverny environment
 
 # Check if --db flag is present in arguments
@@ -110,8 +110,8 @@ for arg in "$@"; do
     fi
 done
 
-# Call the real bd with --sandbox prepended to arguments
-exec /usr/local/bin/bd --sandbox "$@"
+# Call the real bd with --sandbox --no-db prepended to arguments
+exec /usr/local/bin/bd --sandbox --no-db "$@"
 EOF
 RUN chmod +x /usr/local/sbin/bd
 
