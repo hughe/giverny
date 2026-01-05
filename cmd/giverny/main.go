@@ -31,6 +31,7 @@ type Config struct {
 	Prompt          string
 	BaseImage       string
 	DockerArgs      string
+	AgentArgs       string
 	IsInnie         bool
 	GitServerPort   int
 	Debug           bool
@@ -116,6 +117,7 @@ func main() {
 					TaskID:        config.TaskID,
 					Prompt:        config.Prompt,
 					GitServerPort: config.GitServerPort,
+					AgentArgs:     config.AgentArgs,
 					Debug:         config.Debug,
 				}
 				return innie.Run(innieConfig)
@@ -125,6 +127,7 @@ func main() {
 				Prompt:          config.Prompt,
 				BaseImage:       config.BaseImage,
 				DockerArgs:      config.DockerArgs,
+				AgentArgs:       config.AgentArgs,
 				Debug:           config.Debug,
 				ShowBuildOutput: config.ShowBuildOutput,
 				ExistingBranch:  config.ExistingBranch,
@@ -137,6 +140,7 @@ func main() {
 	rootCmd.Flags().BoolVar(&showVersion, "version", false, "Show version information")
 	rootCmd.Flags().StringVar(&config.BaseImage, "base-image", "giverny:latest", "Docker base image")
 	rootCmd.Flags().StringVar(&config.DockerArgs, "docker-args", "", "Additional docker run arguments")
+	rootCmd.Flags().StringVar(&config.AgentArgs, "agent-args", "", "Additional arguments to pass to the agent (claude code)")
 	rootCmd.Flags().BoolVar(&config.Debug, "debug", false, "Enable debug output")
 	rootCmd.Flags().BoolVar(&config.ShowBuildOutput, "show-build-output", false, "Show docker build output")
 	rootCmd.Flags().BoolVar(&config.ExistingBranch, "existing-branch", false, "Use existing branch instead of creating a new one")

@@ -16,6 +16,7 @@ type Config struct {
 	Prompt          string
 	BaseImage       string
 	DockerArgs      string
+	AgentArgs       string
 	Debug           bool
 	ShowBuildOutput bool
 	ExistingBranch  bool
@@ -98,7 +99,7 @@ func Run(config Config) error {
 	}
 
 	// Run the container with Innie
-	exitCode, err := docker.RunContainer(config.TaskID, config.Prompt, gitPort, config.DockerArgs, config.Debug)
+	exitCode, err := docker.RunContainer(config.TaskID, config.Prompt, gitPort, config.DockerArgs, config.AgentArgs, config.Debug)
 
 	// Post-container cleanup
 	containerName := fmt.Sprintf("giverny-%s", config.TaskID)

@@ -14,6 +14,7 @@ type Config struct {
 	TaskID        string
 	Prompt        string
 	GitServerPort int
+	AgentArgs     string
 	Debug         bool
 }
 
@@ -65,12 +66,12 @@ func Run(config Config) error {
 	}
 
 	// Execute Claude Code with the prompt
-	if err := executeClaude(config.Prompt, true); err != nil {
+	if err := executeClaude(config.Prompt, config.AgentArgs, true); err != nil {
 		return fmt.Errorf("failed to execute Claude: %w", err)
 	}
 
 	// Post-Claude menu loop
-	if err := postClaudeMenu(); err != nil {
+	if err := postClaudeMenu(config.AgentArgs); err != nil {
 		return fmt.Errorf("menu error: %w", err)
 	}
 
@@ -152,7 +153,7 @@ func initializeBeads(debug bool) error {
 }
 
 // executeClaude runs Claude Code with the given prompt in /app
-func executeClaude(prompt string, interactive bool) error {
+func executeClaude(prompt, agentArgs string, interactive bool) error {
 	if interactive {
 		fmt.Printf("Executing Claude Code...\n")
 	} else {
@@ -163,6 +164,13 @@ func executeClaude(prompt string, interactive bool) error {
 	if !interactive {
 		args = append(args, "--print")
 	}
+
+	// Parse and add agent args if provided
+	if agentArgs != "" {
+		additionalArgs := strings.Fields(agentArgs)
+		args = append(args, additionalArgs...)
+	}
+
 	args = append(args, prompt)
 
 	cmd := exec.Command("claude", args...)
@@ -181,7 +189,7 @@ func executeClaude(prompt string, interactive bool) error {
 }
 
 // postClaudeMenu shows an interactive menu for committing, restarting, or exiting
-func postClaudeMenu() error {
+func postClaudeMenu(agentArgs string) error {
 	reader := os.Stdin
 
 	for {
@@ -209,9 +217,9 @@ func postClaudeMenu() error {
 
 		switch choice {
 		case "c":
-			return executeClaude("Commit the changes", false)
+			return executeClaude("Commit the changes", agentArgs, false)
 		case "d":
-			if err := runDiffreviewer(); err != nil {
+			if err := runDiffreviewer(agentArgs); err != nil {
 				fmt.Fprintf(os.Stderr, "Error running diffreviewer: %v\n", err)
 				continue
 			}
@@ -222,7 +230,7 @@ func postClaudeMenu() error {
 			}
 		case "r":
 			// Restart Claude - just return and let the loop continue
-			return executeClaude(os.Args[len(os.Args)-1], true)
+			return executeClaude(os.Args[len(os.Args)-1], agentArgs, true)
 		case "x":
 			// Only allow exit if workspace is clean
 			if dirty {
@@ -262,7 +270,7 @@ func startShell() error {
 }
 
 // runDiffreviewer runs diffreviewer and if notes are found, asks Claude to fix them
-func runDiffreviewer() error {
+func runDiffreviewer(agentArgs string) error {
 	fmt.Println("Starting diffreviewer...")
 
 	// Run diffreviewer and capture output
@@ -294,7 +302,7 @@ func runDiffreviewer() error {
 	fmt.Println("Starting Claude to fix the issues...")
 
 	// Start Claude with the notes
-	return executeClaude("Please fix the issues in @/tmp/diffreviewer-notes.md", true)
+	return executeClaude("Please fix the issues in @/tmp/diffreviewer-notes.md", agentArgs, true)
 }
 
 // parseNotesFromOutput extracts notes from diffreviewer output

@@ -9,7 +9,7 @@ import (
 
 // RunContainer starts the giverny-main container with Innie
 // Returns the exit code of the container
-func RunContainer(taskID, prompt string, gitPort int, dockerArgs string, debug bool) (int, error) {
+func RunContainer(taskID, prompt string, gitPort int, dockerArgs, agentArgs string, debug bool) (int, error) {
 	// Get the OAuth token
 	token := os.Getenv("CLAUDE_CODE_OAUTH_TOKEN")
 	if token == "" {
@@ -51,6 +51,11 @@ func RunContainer(taskID, prompt string, gitPort int, dockerArgs string, debug b
 	// Add debug flag if enabled
 	if debug {
 		args = append(args, "--debug")
+	}
+
+	// Add agent args if provided
+	if agentArgs != "" {
+		args = append(args, fmt.Sprintf("--agent-args=%s", agentArgs))
 	}
 
 	args = append(args, taskID, prompt)
