@@ -13,6 +13,13 @@ import (
 	"giverny/internal/outie"
 )
 
+// Version information - injected at build time via -ldflags
+var (
+	versionTag    string
+	versionHash   string
+	versionBranch string
+)
+
 func init() {
 	// Initialize the embedded source for the docker package
 	docker.EmbeddedSource = giverny.Source
@@ -31,16 +38,46 @@ type Config struct {
 }
 
 var (
-	config Config
+	config      Config
+	showVersion bool
 )
+
+// getVersion returns the formatted version string
+func getVersion() string {
+	if versionTag == "" {
+		versionTag = "v0.0.0"
+	}
+	if versionHash == "" {
+		versionHash = "unknown"
+	}
+	if versionBranch == "" {
+		versionBranch = "unknown"
+	}
+
+	// Don't print branch name if it's "main"
+	if versionBranch == "main" {
+		return fmt.Sprintf("%s.%s", versionTag, versionHash)
+	}
+	return fmt.Sprintf("%s.%s %s", versionTag, versionHash, versionBranch)
+}
 
 func main() {
 	rootCmd := &cobra.Command{
 		Use:   "giverny [OPTIONS] TASK-ID [PROMPT]",
 		Short: "Containerized system for running Claude Code safely",
 		Long:  "Giverny creates isolated Docker environments where Claude Code can work on tasks without affecting the host system.",
-		Args:  cobra.RangeArgs(1, 2),
+		Args:  cobra.RangeArgs(0, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Handle --version flag
+			if showVersion {
+				fmt.Println(getVersion())
+				return nil
+			}
+
+			// Require TASK-ID if not showing version
+			if len(args) < 1 {
+				return fmt.Errorf("TASK-ID is required")
+			}
 			config.TaskID = args[0]
 
 			// Validate TASK-ID
@@ -84,6 +121,7 @@ func main() {
 	}
 
 	// Define flags
+	rootCmd.Flags().BoolVar(&showVersion, "version", false, "Show version information")
 	rootCmd.Flags().StringVar(&config.BaseImage, "base-image", "giverny:latest", "Docker base image")
 	rootCmd.Flags().StringVar(&config.DockerArgs, "docker-args", "", "Additional docker run arguments")
 	rootCmd.Flags().BoolVar(&config.Debug, "debug", false, "Enable debug output")
