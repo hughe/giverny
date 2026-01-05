@@ -89,6 +89,72 @@ func TestCreateBranch(t *testing.T) {
 	})
 }
 
+func TestBranchExists(t *testing.T) {
+	// Create a temporary git repository for testing
+	tmpDir, err := os.MkdirTemp("", "giverny-git-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Initialize git repo
+	initTestRepo(t, tmpDir)
+
+	// Change to temp directory for tests
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	defer os.Chdir(origDir)
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp dir: %v", err)
+	}
+
+	t.Run("returns true for existing branch", func(t *testing.T) {
+		branchName := "giverny/test-exists"
+		if err := CreateBranch(branchName); err != nil {
+			t.Fatalf("failed to create branch: %v", err)
+		}
+
+		exists, err := BranchExists(branchName)
+		if err != nil {
+			t.Errorf("expected no error, got: %v", err)
+		}
+		if !exists {
+			t.Error("expected branch to exist, but it doesn't")
+		}
+	})
+
+	t.Run("returns false for non-existing branch", func(t *testing.T) {
+		exists, err := BranchExists("giverny/non-existing-branch")
+		if err != nil {
+			t.Errorf("expected no error, got: %v", err)
+		}
+		if exists {
+			t.Error("expected branch to not exist, but it does")
+		}
+	})
+
+	t.Run("returns true for current branch", func(t *testing.T) {
+		// Get current branch
+		cmd := exec.Command("git", "branch", "--show-current")
+		output, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("failed to get current branch: %v", err)
+		}
+		currentBranch := strings.TrimSpace(string(output))
+
+		exists, err := BranchExists(currentBranch)
+		if err != nil {
+			t.Errorf("expected no error, got: %v", err)
+		}
+		if !exists {
+			t.Error("expected current branch to exist, but it doesn't")
+		}
+	})
+}
+
 func TestGetBranchCommitRange(t *testing.T) {
 	// Create a temporary git repository for testing
 	tmpDir, err := os.MkdirTemp("", "giverny-git-test-*")

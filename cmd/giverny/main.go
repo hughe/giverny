@@ -27,6 +27,7 @@ type Config struct {
 	GitServerPort   int
 	Debug           bool
 	ShowBuildOutput bool
+	ExistingBranch  bool
 }
 
 var (
@@ -76,6 +77,7 @@ func main() {
 				DockerArgs:      config.DockerArgs,
 				Debug:           config.Debug,
 				ShowBuildOutput: config.ShowBuildOutput,
+				ExistingBranch:  config.ExistingBranch,
 			}
 			return outie.Run(outieConfig)
 		},
@@ -86,6 +88,7 @@ func main() {
 	rootCmd.Flags().StringVar(&config.DockerArgs, "docker-args", "", "Additional docker run arguments")
 	rootCmd.Flags().BoolVar(&config.Debug, "debug", false, "Enable debug output")
 	rootCmd.Flags().BoolVar(&config.ShowBuildOutput, "show-build-output", false, "Show docker build output")
+	rootCmd.Flags().BoolVar(&config.ExistingBranch, "existing-branch", false, "Use existing branch instead of creating a new one")
 
 	// Hidden flags (for internal use only)
 	rootCmd.Flags().BoolVar(&config.IsInnie, "innie", false, "Internal flag for running inside container")

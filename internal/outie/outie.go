@@ -17,6 +17,7 @@ type Config struct {
 	DockerArgs      string
 	Debug           bool
 	ShowBuildOutput bool
+	ExistingBranch  bool
 }
 
 // Run executes the Outie workflow
@@ -35,12 +36,25 @@ func Run(config Config) error {
 		return fmt.Errorf("CLAUDE_CODE_OAUTH_TOKEN environment variable is not set.\nPlease set it with: export CLAUDE_CODE_OAUTH_TOKEN=your-token")
 	}
 
-	// Create git branch for this task
+	// Create or validate git branch for this task
 	branchName := fmt.Sprintf("giverny/%s", config.TaskID)
-	if err := git.CreateBranch(branchName); err != nil {
-		return fmt.Errorf("failed to create branch: %w", err)
+	if config.ExistingBranch {
+		// Validate that the branch exists
+		exists, err := git.BranchExists(branchName)
+		if err != nil {
+			return fmt.Errorf("failed to check if branch exists: %w", err)
+		}
+		if !exists {
+			return fmt.Errorf("branch '%s' does not exist", branchName)
+		}
+		fmt.Printf("Using existing branch: %s\n", branchName)
+	} else {
+		// Create new branch
+		if err := git.CreateBranch(branchName); err != nil {
+			return fmt.Errorf("failed to create branch: %w", err)
+		}
+		fmt.Printf("Created branch: %s\n", branchName)
 	}
-	fmt.Printf("Created branch: %s\n", branchName)
 
 	// Start git server
 	serverCmd, gitPort, err := git.StartServer(projectRoot)

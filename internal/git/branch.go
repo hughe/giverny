@@ -24,6 +24,23 @@ func CreateBranch(branchName string) error {
 	return nil
 }
 
+// BranchExists checks if a git branch exists.
+// Returns true if the branch exists, false otherwise.
+func BranchExists(branchName string) (bool, error) {
+	cmd := exec.Command("git", "rev-parse", "--verify", branchName)
+	err := cmd.Run()
+
+	if err != nil {
+		// If exit status is not 0, the branch does not exist
+		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 128 {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to check if branch '%s' exists: %w", branchName, err)
+	}
+
+	return true, nil
+}
+
 // GetBranchCommitRange returns the first and last commit hashes for a branch.
 // Returns empty strings if the branch has no commits beyond its START label.
 // The START label is expected to be named "branchName-START" and marks the beginning of work.
