@@ -297,4 +297,90 @@ func TestGetBranchCommitRange(t *testing.T) {
 			t.Errorf("expected last commit %s, got %s", expectedCommit, last)
 		}
 	})
+
+	t.Run("finds divergence point without START label (outie scenario)", func(t *testing.T) {
+		// This test simulates the scenario in outie where:
+		// 1. A branch is created from the default branch
+		// 2. Commits are made to the branch (inside container)
+		// 3. We need to find the commit range without the START label
+		//    (which only exists inside the container)
+
+		// Get the current branch name (could be 'main' or 'master')
+		cmd := exec.Command("git", "branch", "--show-current")
+		output, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("failed to get current branch: %v", err)
+		}
+		defaultBranch := strings.TrimSpace(string(output))
+
+		// First, rename the default branch to 'main' for consistency
+		cmd = exec.Command("git", "branch", "-m", defaultBranch, "main")
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("failed to rename branch to main: %v", err)
+		}
+
+		// Make a commit on main
+		cmd = exec.Command("sh", "-c", "echo 'divergence-test-main' > divergence-main.txt && git add divergence-main.txt && git commit -m 'Commit on main'")
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("failed to make commit on main: %v", err)
+		}
+
+		// Create a branch from main
+		branchName := "giverny/test-without-label"
+		if err := CreateBranch(branchName); err != nil {
+			t.Fatalf("failed to create branch: %v", err)
+		}
+
+		// Checkout the branch
+		cmd = exec.Command("git", "checkout", branchName)
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("failed to checkout branch: %v", err)
+		}
+
+		// Make commits on the branch (simulating work done in container)
+		cmd = exec.Command("sh", "-c", "echo 'divergence-test1' > divergence-test1.txt && git add divergence-test1.txt && git commit -m 'First commit'")
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("failed to make first commit: %v", err)
+		}
+
+		// Get the first commit hash
+		cmd = exec.Command("git", "rev-parse", "HEAD")
+		output, err = cmd.Output()
+		if err != nil {
+			t.Fatalf("failed to get first commit hash: %v", err)
+		}
+		expectedFirst := strings.TrimSpace(string(output))
+
+		// Make another commit
+		cmd = exec.Command("sh", "-c", "echo 'divergence-test2' > divergence-test2.txt && git add divergence-test2.txt && git commit -m 'Second commit'")
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("failed to make second commit: %v", err)
+		}
+
+		// Get the second commit hash
+		cmd = exec.Command("git", "rev-parse", "HEAD")
+		output, err = cmd.Output()
+		if err != nil {
+			t.Fatalf("failed to get second commit hash: %v", err)
+		}
+		expectedLast := strings.TrimSpace(string(output))
+
+		// Go back to main (simulating outie checking the branch)
+		cmd = exec.Command("git", "checkout", "main")
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("failed to checkout main: %v", err)
+		}
+
+		// Now test GetBranchCommitRange from main (no START label exists)
+		first, last, err := GetBranchCommitRange(branchName)
+		if err != nil {
+			t.Errorf("expected no error, got: %v", err)
+		}
+		if first != expectedFirst {
+			t.Errorf("expected first commit %s, got %s", expectedFirst, first)
+		}
+		if last != expectedLast {
+			t.Errorf("expected last commit %s, got %s", expectedLast, last)
+		}
+	})
 }

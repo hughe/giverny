@@ -42,8 +42,15 @@ func BranchExists(branchName string) (bool, error) {
 }
 
 // GetBranchCommitRange returns the first and last commit hashes for a branch.
-// Returns empty strings if the branch has no commits beyond its START label.
-// The START label is expected to be named "branchName-START" and marks the beginning of work.
+// Returns empty strings if the branch has no commits beyond its divergence point.
+//
+// The function tries multiple strategies to find the commit range:
+// 1. If a START label exists (branchName-START), use commits after that label
+// 2. Otherwise, find where the branch diverged from its parent branch using merge-base
+//
+// The parent branch is determined by checking:
+// - The branch's upstream tracking branch
+// - If no upstream exists, falls back to 'main'
 func GetBranchCommitRange(branchName string) (firstCommit, lastCommit string, err error) {
 	// Get the last commit (HEAD of the branch)
 	cmd := exec.Command("git", "rev-parse", branchName)
@@ -53,43 +60,74 @@ func GetBranchCommitRange(branchName string) (firstCommit, lastCommit string, er
 	}
 	lastCommit = strings.TrimSpace(string(output))
 
-	// Check if START label exists
+	// Strategy 1: Check if START label exists (used inside containers)
 	startLabel := branchName + "-START"
 	cmd = exec.Command("git", "rev-parse", "--verify", startLabel)
 	output, err = cmd.Output()
-	if err != nil {
-		// START label doesn't exist, fall back to finding commits unique to this branch
-		cmd = exec.Command("git", "log", "--reverse", "--format=%H", branchName, "--not", "--all", "--not", branchName)
+	if err == nil {
+		// START label exists, get the first commit after it
+		startCommit := strings.TrimSpace(string(output))
+
+		// Check if there are any commits between START and the branch HEAD
+		cmd = exec.Command("git", "rev-list", "--reverse", startCommit+".."+branchName)
 		output, err = cmd.Output()
 		if err != nil {
-			return "", "", fmt.Errorf("failed to get first commit for branch '%s': %w", branchName, err)
+			return "", "", fmt.Errorf("failed to get commits after START label: %w", err)
 		}
 
 		commits := strings.TrimSpace(string(output))
 		if commits == "" {
-			// No commits unique to this branch
+			// No commits after START label
 			return "", "", nil
 		}
 
 		// First line is the first commit
 		lines := strings.Split(commits, "\n")
 		firstCommit = lines[0]
+
 		return firstCommit, lastCommit, nil
 	}
 
-	// START label exists, get the first commit after it
-	startCommit := strings.TrimSpace(string(output))
+	// Strategy 2: Find divergence point using merge-base with parent branch
+	// First, try to find the upstream tracking branch
+	cmd = exec.Command("git", "rev-parse", "--abbrev-ref", branchName+"@{upstream}")
+	output, err = cmd.Output()
 
-	// Check if there are any commits between START and the branch HEAD
-	cmd = exec.Command("git", "rev-list", "--reverse", startCommit+".."+branchName)
+	var parentBranch string
+	if err != nil {
+		// No upstream branch, fall back to 'main'
+		parentBranch = "main"
+	} else {
+		parentBranch = strings.TrimSpace(string(output))
+	}
+
+	// Find the merge-base (common ancestor) between the branch and its parent
+	cmd = exec.Command("git", "merge-base", parentBranch, branchName)
 	output, err = cmd.Output()
 	if err != nil {
-		return "", "", fmt.Errorf("failed to get commits after START label: %w", err)
+		// If merge-base fails, the branches may not share history
+		// Fall back to returning empty (no commits to cherry-pick)
+		return "", "", nil
+	}
+
+	mergeBase := strings.TrimSpace(string(output))
+
+	// Check if the branch has diverged at all
+	if mergeBase == lastCommit {
+		// No commits beyond the merge-base
+		return "", "", nil
+	}
+
+	// Get all commits from merge-base to branch HEAD
+	cmd = exec.Command("git", "rev-list", "--reverse", mergeBase+".."+branchName)
+	output, err = cmd.Output()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get commits after merge-base: %w", err)
 	}
 
 	commits := strings.TrimSpace(string(output))
 	if commits == "" {
-		// No commits after START label
+		// No commits after merge-base
 		return "", "", nil
 	}
 
