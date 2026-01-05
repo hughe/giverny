@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"giverny/internal/terminal"
 )
 
 // RunContainer starts the giverny-main container with Innie
@@ -67,7 +69,7 @@ func RunContainer(taskID, prompt string, gitPort int, dockerArgs, agentArgs stri
 
 	fmt.Printf("Starting container %s for task %s...\n", containerName, taskID)
 	fmt.Printf("To start a shell in the container, run:\n")
-	fmt.Printf("  docker exec -it %s /bin/sh\n\n", containerName)
+	fmt.Printf("  %s\n\n", terminal.Blue(fmt.Sprintf("docker exec -it %s /bin/sh", containerName)))
 
 	exitCode := 0
 	if err := cmd.Run(); err != nil {

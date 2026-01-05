@@ -61,7 +61,7 @@ func IsWorkspaceDirty() (bool, error) {
 }
 
 // PushBranch pushes the branch to the git server
-func PushBranch(branchName string, gitServerPort int) error {
+func PushBranch(branchName string, gitServerPort int, debug bool) error {
 	fmt.Printf("Pushing %s to git server...\n", branchName)
 
 	// Construct the git server URL
@@ -72,8 +72,12 @@ func PushBranch(branchName string, gitServerPort int) error {
 	// Push the branch
 	cmd := exec.Command("git", "push", gitServerURL, branchName)
 	cmd.Dir = "/app"
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+
+	// Only show output if debug flag is set
+	if debug {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("git push failed: %w", err)

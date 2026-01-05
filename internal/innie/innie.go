@@ -76,7 +76,7 @@ func Run(config Config) error {
 	}
 
 	// Push branch and exit
-	if err := git.PushBranch(branchName, config.GitServerPort); err != nil {
+	if err := git.PushBranch(branchName, config.GitServerPort, config.Debug); err != nil {
 		return fmt.Errorf("failed to push branch: %w", err)
 	}
 
