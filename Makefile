@@ -8,6 +8,7 @@ BUILD_DIR=bin
 
 # Version information
 VERSION_TAG=$(shell git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+VERSION_TAG_HASH=$(shell git rev-list -n 1 $(shell git describe --tags --abbrev=0 2>/dev/null || echo "HEAD") 2>/dev/null | cut -c1-7 || echo "unknown")
 VERSION_HASH=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 VERSION_BRANCH=$(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 
@@ -20,7 +21,7 @@ GIV_TEST_ENV_DIR?=/tmp/giverny-test-env-$$$$
 build:
 	@echo "Building $(BINARY_NAME)..."
 	@mkdir -p $(BUILD_DIR)
-	go build -ldflags "-X main.versionTag=$(VERSION_TAG) -X main.versionHash=$(VERSION_HASH) -X main.versionBranch=$(VERSION_BRANCH)" -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/giverny
+	go build -ldflags "-X main.versionTag=$(VERSION_TAG) -X main.versionTagHash=$(VERSION_TAG_HASH) -X main.versionHash=$(VERSION_HASH) -X main.versionBranch=$(VERSION_BRANCH)" -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/giverny
 
 # Clean build artifacts
 clean:

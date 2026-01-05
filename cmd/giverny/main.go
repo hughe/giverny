@@ -15,9 +15,10 @@ import (
 
 // Version information - injected at build time via -ldflags
 var (
-	versionTag    string
-	versionHash   string
-	versionBranch string
+	versionTag     string
+	versionTagHash string
+	versionHash    string
+	versionBranch  string
 )
 
 func init() {
@@ -50,12 +51,24 @@ func getVersion() string {
 	if versionHash == "" {
 		versionHash = "unknown"
 	}
+	if versionTagHash == "" {
+		versionTagHash = "unknown"
+	}
 	if versionBranch == "" {
 		versionBranch = "unknown"
 	}
 
+	// If current commit matches the tagged commit, omit the hash
+	onTaggedCommit := versionHash == versionTagHash
+
 	// Don't print branch name if it's "main"
-	if versionBranch == "main" {
+	onMainBranch := versionBranch == "main"
+
+	if onTaggedCommit {
+		return versionTag
+	}
+
+	if onMainBranch {
 		return fmt.Sprintf("%s.%s", versionTag, versionHash)
 	}
 	return fmt.Sprintf("%s.%s %s", versionTag, versionHash, versionBranch)
