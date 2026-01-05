@@ -22,8 +22,8 @@ giverny TASK-ID [PROMPT]
 ```
 
 Where:
-- `TASK-ID` is a branch identifier (if using [beads](https://github.com/jlewallen/beads) for issue tracking, this can be a beads issue ID)
-- `PROMPT` is an optional starting prompt for Claude Code. If not specified, Claude Code starts in interactive mode waiting for your input.
+- `TASK-ID` is the id of a task to perform. It might be an identifier from an issue tracker like [beads](https://github.com/jlewallen/beads) (e.g., `giv-0f9`), or it could be an identifier like `create-hello-world`.
+- `PROMPT` is an optional string prompt telling Claude Code what to do. If not specified, it defaults to "Please work on TASK-ID."
 
 ### Options
 
