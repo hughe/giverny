@@ -232,3 +232,119 @@ Must include:
 
 * Add CPU/memory limits for the container or Claude Code process.
 
+## Code Review and Cleanup Suggestions
+
+The following improvements were identified during a code review (January 2026):
+
+### High Priority
+
+**1. Command Execution Helper**
+
+There are 26+ instances of this pattern throughout the codebase:
+
+```go
+cmd := exec.Command("git", ...)
+cmd.Dir = "/path"
+if err := cmd.Run(); err != nil {
+    return fmt.Errorf("...: %w", err)
+}
+```
+
+Create an `internal/cmdutil` package with helper functions:
+
+```go
+func RunCommand(name string, args ...string) error
+func RunCommandInDir(dir, name string, args ...string) error
+func RunCommandWithOutput(name string, args ...string) (string, error)
+```
+
+This reduces boilerplate and centralizes error handling.
+
+**2. Break Up innie.go (338 lines)**
+
+The `internal/innie/innie.go` module handles too many responsibilities:
+- Repository cloning
+- Workspace setup
+- Beads initialization with AGENTS.md preservation
+- Claude Code execution
+- Interactive menu loop
+- Diffreviewer integration
+- Shell spawning
+
+Suggested refactoring:
+- Extract beads initialization to `internal/beads/init.go`
+- Extract interactive menu to `internal/interactive/menu.go`
+- Keep Claude execution in innie (it's the core responsibility)
+
+### Medium Priority
+
+**3. Consolidate Test Helpers**
+
+Two nearly identical `initTestRepo` functions exist with different signatures:
+- `cmd/giverny/test_helpers.go`: `initTestRepo(t, dir)`
+- `internal/git/test_helpers.go`: `initTestRepo(t, dir, content ...string)`
+
+Create a shared `internal/testutil` package to consolidate test utilities.
+
+**4. Fix Silent Errors in Test Setup**
+
+In `cmd/giverny/test_helpers.go` and `internal/git/test_helpers.go`, git config commands don't check for errors:
+
+```go
+// Bad - errors ignored
+exec.Command("git", "-C", dir, "config", "user.email", "test@example.com").Run()
+
+// Good - errors checked
+if err := exec.Command("git", "-C", dir, "config", "user.email", "test@example.com").Run(); err != nil {
+    t.Fatalf("failed to set user.email: %v", err)
+}
+```
+
+**5. Implement PID File Polling for Git Server**
+
+In `internal/git/git_server.go`, there's a TODO comment (lines 75-77) about replacing stderr pattern matching ("Ready to rumble") with PID file polling. This would be more robust and avoid potential issues with stderr buffering or message format changes.
+
+### Low Priority
+
+**6. Extract Shell Detection**
+
+The shell detection logic in `innie.go` could be extracted to a utility:
+
+```go
+func DetectShell() string {
+    if _, err := os.Stat("/bin/zsh"); err == nil {
+        return "/bin/zsh"
+    }
+    if _, err := os.Stat("/bin/bash"); err == nil {
+        return "/bin/bash"
+    }
+    return "/bin/sh"
+}
+```
+
+**7. Add Config File Support**
+
+Currently all configuration is via CLI flags. Consider adding support for a `.givernyrc` or similar config file for user defaults (base image, docker args, etc.).
+
+**8. Expand Test Coverage**
+
+The `outie.Run()` and `innie.Run()` functions lack tests (marked as Skip). Consider:
+- Adding integration tests that can run with `INTEGRATION_TEST=1`
+- Creating mock interfaces for Docker and git operations to enable unit testing
+- Testing the interactive menu with test doubles for stdin/stdout
+
+### Code Quality Notes
+
+**Strengths observed:**
+- Clean architecture with good separation of concerns
+- Consistent error wrapping with `fmt.Errorf("...": %w", err)`
+- Good test isolation using temp directories and TestMain
+- Smart git design (START label strategy for commit range detection)
+- Defensive programming (bd wrapper, AGENTS.md handling)
+
+**Patterns to maintain:**
+- The current error handling approach with context-rich messages
+- Using `defer` for cleanup operations
+- Test isolation with `GIV_TEST_ENV_DIR`
+- Two-stage Docker build for cross-architecture support
+
