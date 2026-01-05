@@ -112,6 +112,8 @@ When you commit some changes.  Please add the IDs of the tasks that were closed 
 Closes: bd-123, bd-abc
 ```
 
+*Always* make sure that the changes to file in `.beads/` are included in the commit.
+
 ## Landing the Plane (Session Completion)
 
 **When ending a work session**, you MUST complete ALL steps below. 
