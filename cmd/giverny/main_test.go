@@ -354,3 +354,101 @@ func TestIsWorkspaceDirty_DirtyWorkspace(t *testing.T) {
 		t.Error("expected workspace to be dirty, but it was clean")
 	}
 }
+
+func TestGetVersion(t *testing.T) {
+	tests := []struct {
+		name           string
+		tag            string
+		tagHash        string
+		hash           string
+		branch         string
+		expectedOutput string
+	}{
+		{
+			name:           "on tagged commit",
+			tag:            "v1.0.0",
+			tagHash:        "abc1234",
+			hash:           "abc1234",
+			branch:         "main",
+			expectedOutput: "v1.0.0",
+		},
+		{
+			name:           "on tagged commit on feature branch",
+			tag:            "v1.0.0",
+			tagHash:        "abc1234",
+			hash:           "abc1234",
+			branch:         "feature-branch",
+			expectedOutput: "v1.0.0",
+		},
+		{
+			name:           "on main branch not tagged",
+			tag:            "v1.0.0",
+			tagHash:        "abc1234",
+			hash:           "def5678",
+			branch:         "main",
+			expectedOutput: "v1.0.0.def5678",
+		},
+		{
+			name:           "on feature branch not tagged",
+			tag:            "v1.2.3",
+			tagHash:        "111aaaa",
+			hash:           "222bbbb",
+			branch:         "feature-xyz",
+			expectedOutput: "v1.2.3.222bbbb feature-xyz",
+		},
+		{
+			name:           "with empty values uses defaults and matches",
+			tag:            "",
+			tagHash:        "",
+			hash:           "",
+			branch:         "",
+			expectedOutput: "v0.0.0",
+		},
+		{
+			name:           "with empty tag and hash on main matches",
+			tag:            "",
+			tagHash:        "",
+			hash:           "",
+			branch:         "main",
+			expectedOutput: "v0.0.0",
+		},
+		{
+			name:           "with mismatched empty tag hash",
+			tag:            "v2.0.0",
+			tagHash:        "",
+			hash:           "abc1234",
+			branch:         "feature",
+			expectedOutput: "v2.0.0.abc1234 feature",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Save original values
+			origTag := versionTag
+			origTagHash := versionTagHash
+			origHash := versionHash
+			origBranch := versionBranch
+
+			// Restore original values after test
+			defer func() {
+				versionTag = origTag
+				versionTagHash = origTagHash
+				versionHash = origHash
+				versionBranch = origBranch
+			}()
+
+			// Set test values
+			versionTag = tt.tag
+			versionTagHash = tt.tagHash
+			versionHash = tt.hash
+			versionBranch = tt.branch
+
+			// Call getVersion and check output
+			result := getVersion()
+			if result != tt.expectedOutput {
+				t.Errorf("getVersion() = %q, want %q", result, tt.expectedOutput)
+			}
+		})
+	}
+}
