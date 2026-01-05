@@ -7,6 +7,7 @@ import (
 
 	"giverny/internal/docker"
 	"giverny/internal/git"
+	"giverny/internal/terminal"
 )
 
 // Config holds the configuration for the Outie
@@ -22,6 +23,17 @@ type Config struct {
 
 // Run executes the Outie workflow
 func Run(config Config) error {
+	// Save the current terminal title and set it to "Giverny: TASK-ID"
+	originalTitle := terminal.GetTitle()
+	terminal.SetTitle(fmt.Sprintf("Giverny: %s", config.TaskID))
+
+	// Restore the original title on exit
+	defer func() {
+		if originalTitle != "" {
+			terminal.SetTitle(originalTitle)
+		}
+	}()
+
 	// Find project root and change to it
 	projectRoot, err := findProjectRoot()
 	if err != nil {
