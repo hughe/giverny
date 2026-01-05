@@ -46,11 +46,10 @@ func BranchExists(branchName string) (bool, error) {
 //
 // The function tries multiple strategies to find the commit range:
 // 1. If a START label exists (branchName-START), use commits after that label
-// 2. Otherwise, find where the branch diverged from its parent branch using merge-base
+// 2. Otherwise, find where the branch diverged from 'main' using merge-base
 //
-// The parent branch is determined by checking:
-// - The branch's upstream tracking branch
-// - If no upstream exists, falls back to 'main'
+// This always compares against 'main' regardless of upstream tracking settings,
+// ensuring cherry-pick instructions are relative to the main branch.
 func GetBranchCommitRange(branchName string) (firstCommit, lastCommit string, err error) {
 	// Get the last commit (HEAD of the branch)
 	cmd := exec.Command("git", "rev-parse", branchName)
@@ -89,17 +88,10 @@ func GetBranchCommitRange(branchName string) (firstCommit, lastCommit string, er
 	}
 
 	// Strategy 2: Find divergence point using merge-base with parent branch
-	// First, try to find the upstream tracking branch
-	cmd = exec.Command("git", "rev-parse", "--abbrev-ref", branchName+"@{upstream}")
-	output, err = cmd.Output()
-
-	var parentBranch string
-	if err != nil {
-		// No upstream branch, fall back to 'main'
-		parentBranch = "main"
-	} else {
-		parentBranch = strings.TrimSpace(string(output))
-	}
+	// Always use 'main' as the parent branch for cherry-pick instructions.
+	// This ensures users get instructions to cherry-pick commits from the task
+	// branch into their main branch, regardless of upstream tracking settings.
+	parentBranch := "main"
 
 	// Find the merge-base (common ancestor) between the branch and its parent
 	cmd = exec.Command("git", "merge-base", parentBranch, branchName)

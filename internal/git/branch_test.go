@@ -383,4 +383,122 @@ func TestGetBranchCommitRange(t *testing.T) {
 			t.Errorf("expected last commit %s, got %s", expectedLast, last)
 		}
 	})
+
+	t.Run("finds divergence point with upstream tracking branch set", func(t *testing.T) {
+		// This test ensures that even when a branch has an upstream tracking branch,
+		// GetBranchCommitRange still returns the commits relative to 'main', not
+		// relative to the upstream. This is important for giverny's cherry-pick
+		// instructions which should always be relative to the main branch.
+
+		// Get the current branch name (could be 'main' or 'master')
+		cmd := exec.Command("git", "branch", "--show-current")
+		output, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("failed to get current branch: %v", err)
+		}
+		defaultBranch := strings.TrimSpace(string(output))
+
+		// First, rename the default branch to 'main' for consistency
+		if defaultBranch != "main" {
+			cmd = exec.Command("git", "branch", "-m", defaultBranch, "main")
+			if err := cmd.Run(); err != nil {
+				t.Fatalf("failed to rename branch to main: %v", err)
+			}
+		}
+
+		// Make a commit on main to establish a divergence point
+		cmd = exec.Command("sh", "-c", "echo 'upstream-test-main' > upstream-main.txt && git add upstream-main.txt && git commit -m 'Commit on main'")
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("failed to make commit on main: %v", err)
+		}
+
+		// Create a branch from main
+		branchName := "giverny/test-with-upstream"
+		if err := CreateBranch(branchName); err != nil {
+			t.Fatalf("failed to create branch: %v", err)
+		}
+
+		// Checkout the branch
+		cmd = exec.Command("git", "checkout", branchName)
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("failed to checkout branch: %v", err)
+		}
+
+		// Make commits on the branch
+		cmd = exec.Command("sh", "-c", "echo 'upstream-test1' > upstream-test1.txt && git add upstream-test1.txt && git commit -m 'First commit'")
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("failed to make first commit: %v", err)
+		}
+
+		// Get the first commit hash
+		cmd = exec.Command("git", "rev-parse", "HEAD")
+		output, err = cmd.Output()
+		if err != nil {
+			t.Fatalf("failed to get first commit hash: %v", err)
+		}
+		expectedFirst := strings.TrimSpace(string(output))
+
+		// Make another commit
+		cmd = exec.Command("sh", "-c", "echo 'upstream-test2' > upstream-test2.txt && git add upstream-test2.txt && git commit -m 'Second commit'")
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("failed to make second commit: %v", err)
+		}
+
+		// Get the second commit hash
+		cmd = exec.Command("git", "rev-parse", "HEAD")
+		output, err = cmd.Output()
+		if err != nil {
+			t.Fatalf("failed to get second commit hash: %v", err)
+		}
+		expectedLast := strings.TrimSpace(string(output))
+
+		// Set up a fake upstream tracking branch
+		// First, add a fake remote
+		cmd = exec.Command("git", "remote", "add", "origin", "fake-url")
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("failed to add remote: %v", err)
+		}
+
+		// Create a fake remote branch by creating a ref
+		cmd = exec.Command("git", "update-ref", "refs/remotes/origin/"+branchName, expectedLast)
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("failed to create fake remote ref: %v", err)
+		}
+
+		// Set the upstream tracking
+		cmd = exec.Command("git", "branch", "--set-upstream-to=origin/"+branchName, branchName)
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("failed to set upstream: %v", err)
+		}
+
+		// Verify upstream is set
+		cmd = exec.Command("git", "rev-parse", "--abbrev-ref", branchName+"@{upstream}")
+		output, err = cmd.Output()
+		if err != nil {
+			t.Fatalf("upstream should be set but got error: %v", err)
+		}
+		upstream := strings.TrimSpace(string(output))
+		if upstream != "origin/"+branchName {
+			t.Fatalf("expected upstream to be origin/%s, got %s", branchName, upstream)
+		}
+
+		// Now test GetBranchCommitRange - it should return commits relative to main,
+		// not relative to the upstream (which would return no commits since they're synced)
+		first, last, err := GetBranchCommitRange(branchName)
+		if err != nil {
+			t.Errorf("expected no error, got: %v", err)
+		}
+		if first != expectedFirst {
+			t.Errorf("expected first commit %s, got %s", expectedFirst, first)
+		}
+		if last != expectedLast {
+			t.Errorf("expected last commit %s, got %s", expectedLast, last)
+		}
+
+		// Clean up: go back to main
+		cmd = exec.Command("git", "checkout", "main")
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("failed to checkout main: %v", err)
+		}
+	})
 }
