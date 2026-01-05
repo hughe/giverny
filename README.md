@@ -1,4 +1,4 @@
-# Giverny - A Home for Claude Code
+# Giverny - A House for Claude Code
 
 Giverny is a containerized system for running [Claude Code](https://claude.ai/code) safely. It creates isolated Docker environments where Claude Code can work on tasks without affecting the host system.
 
@@ -12,6 +12,36 @@ Giverny provides a sandboxed environment for Claude Code by:
 - Using git branches to isolate changes
 - Running a local git daemon for communication between host and container
 - Allowing Claude Code to work safely without affecting your host system
+
+## Running
+
+Basic usage:
+
+```bash
+giverny TASK-ID [PROMPT]
+```
+
+### Options
+
+- `--base-image BASE-IMAGE`: Docker base image (default: `giverny:latest`)
+- `--docker-args DOCKER-ARGS`: Additional docker run arguments
+- `--debug`: Enable debug output
+- `--show-build-output`: Show docker build output
+- `--existing-branch`: Use existing branch instead of creating a new one
+- `--version`: Show version information
+
+### Examples
+
+```bash
+# Run Claude Code on a task with a specific prompt
+giverny my-feature "Implement user authentication"
+
+# Use a different base image
+giverny --base-image ubuntu:22.04 my-feature "Fix the login bug"
+
+# Enable debug output
+giverny --debug my-feature "Add unit tests"
+```
 
 ## Architecture
 
@@ -61,36 +91,6 @@ make clean           # Remove build artifacts
 make fmt             # Format code
 make lint            # Run linter
 make image           # Build Docker image for Giverny to work on Giverny
-```
-
-## Running
-
-Basic usage:
-
-```bash
-giverny TASK-ID [PROMPT]
-```
-
-### Options
-
-- `--base-image BASE-IMAGE`: Docker base image (default: `giverny:latest`)
-- `--docker-args DOCKER-ARGS`: Additional docker run arguments
-- `--debug`: Enable debug output
-- `--show-build-output`: Show docker build output
-- `--existing-branch`: Use existing branch instead of creating a new one
-- `--version`: Show version information
-
-### Example
-
-```bash
-# Run Claude Code on a task with a specific prompt
-giverny my-feature "Implement user authentication"
-
-# Use a different base image
-giverny my-feature --base-image ubuntu:22.04 "Fix the login bug"
-
-# Enable debug output
-giverny my-feature --debug "Add unit tests"
 ```
 
 ## Testing
