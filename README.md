@@ -21,6 +21,10 @@ Basic usage:
 giverny TASK-ID [PROMPT]
 ```
 
+Where:
+- `TASK-ID` is a branch identifier (if using [beads](https://github.com/jlewallen/beads) for issue tracking, this can be a beads issue ID)
+- `PROMPT` is an optional starting prompt for Claude Code. If not specified, Claude Code starts in interactive mode waiting for your input.
+
 ### Options
 
 - `--base-image BASE-IMAGE`: Docker base image (default: `giverny:latest`)
