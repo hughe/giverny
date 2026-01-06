@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+
+	"giverny/internal/testutil"
 )
 
 func TestCreateBranch(t *testing.T) {
@@ -16,7 +18,7 @@ func TestCreateBranch(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Initialize git repo
-	initTestRepo(t, tmpDir)
+	testutil.InitTestRepo(t, tmpDir)
 
 	// Change to temp directory for tests
 	origDir, err := os.Getwd()
@@ -98,7 +100,7 @@ func TestBranchExists(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Initialize git repo
-	initTestRepo(t, tmpDir)
+	testutil.InitTestRepo(t, tmpDir)
 
 	// Change to temp directory for tests
 	origDir, err := os.Getwd()
@@ -165,7 +167,7 @@ func TestGetBranchCommitRange(t *testing.T) {
 		defer os.RemoveAll(tmpDir)
 
 		// Initialize git repo
-		initTestRepo(t, tmpDir)
+		testutil.InitTestRepo(t, tmpDir)
 
 		// Change to temp directory for this test
 		origDir, err := os.Getwd()
@@ -200,7 +202,7 @@ func TestGetBranchCommitRange(t *testing.T) {
 		defer os.RemoveAll(tmpDir)
 
 		// Initialize git repo
-		initTestRepo(t, tmpDir)
+		testutil.InitTestRepo(t, tmpDir)
 
 		// Change to temp directory for this test
 		origDir, err := os.Getwd()
@@ -281,7 +283,7 @@ func TestGetBranchCommitRange(t *testing.T) {
 		defer os.RemoveAll(tmpDir)
 
 		// Initialize git repo
-		initTestRepo(t, tmpDir)
+		testutil.InitTestRepo(t, tmpDir)
 
 		// Change to temp directory for this test
 		origDir, err := os.Getwd()
@@ -354,7 +356,7 @@ func TestGetBranchCommitRange(t *testing.T) {
 		defer os.RemoveAll(tmpDir)
 
 		// Initialize git repo
-		initTestRepo(t, tmpDir)
+		testutil.InitTestRepo(t, tmpDir)
 
 		// Change to temp directory for this test
 		origDir, err := os.Getwd()
@@ -446,7 +448,7 @@ func TestGetBranchCommitRange(t *testing.T) {
 		defer os.RemoveAll(tmpDir)
 
 		// Initialize git repo
-		initTestRepo(t, tmpDir)
+		testutil.InitTestRepo(t, tmpDir)
 
 		// Change to temp directory for this test
 		origDir, err := os.Getwd()
@@ -565,7 +567,7 @@ func TestGetShortHash(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Initialize git repo
-	initTestRepo(t, tmpDir)
+	testutil.InitTestRepo(t, tmpDir)
 
 	// Change to temp directory for tests
 	origDir, err := os.Getwd()

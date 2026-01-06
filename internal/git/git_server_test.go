@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"testing"
 	"time"
+
+	"giverny/internal/testutil"
 )
 
 func TestMain(m *testing.M) {
@@ -28,7 +30,7 @@ func TestStartServer(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Initialize git repo
-	initTestRepo(t, tmpDir)
+	testutil.InitTestRepo(t, tmpDir)
 
 	t.Run("starts server successfully", func(t *testing.T) {
 		serverCmd, port, err := StartServer(tmpDir)

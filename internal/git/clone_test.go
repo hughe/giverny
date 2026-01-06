@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"giverny/internal/testutil"
 )
 
 // TestCloneRepo tests cloning a repository from a git daemon server
@@ -21,7 +23,7 @@ func TestCloneRepo(t *testing.T) {
 	defer os.RemoveAll(sourceRepo)
 
 	// Initialize git repo
-	initTestRepo(t, sourceRepo, "test content")
+	testutil.InitTestRepo(t, sourceRepo, "test content")
 
 	// Start git server on the source repository
 	serverCmd, port, err := StartServer(sourceRepo)

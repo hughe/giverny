@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"giverny/internal/cmdutil"
+	"giverny/internal/testutil"
 )
 
 func TestMain(m *testing.M) {
@@ -19,35 +20,6 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
-// initTestRepo initializes a git repository in the given directory with an initial commit.
-// It configures the repo with test user credentials and creates a test.txt file.
-func initTestRepo(t *testing.T, dir string) {
-	t.Helper()
-
-	// Initialize git repo with 'main' as the default branch
-	if err := cmdutil.RunCommandInDir(dir, "git", "init", "--initial-branch=main"); err != nil {
-		t.Fatalf("failed to init git repo: %v", err)
-	}
-
-	// Configure git repo
-	cmdutil.RunCommand("git", "-C", dir, "config", "user.email", "test@example.com")
-	cmdutil.RunCommand("git", "-C", dir, "config", "user.name", "Test User")
-
-	// Create initial commit
-	testFile := filepath.Join(dir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
-		t.Fatalf("failed to create test file: %v", err)
-	}
-
-	if err := cmdutil.RunCommandInDir(dir, "git", "add", "test.txt"); err != nil {
-		t.Fatalf("failed to git add: %v", err)
-	}
-
-	if err := cmdutil.RunCommandInDir(dir, "git", "commit", "-m", "Initial commit"); err != nil {
-		t.Fatalf("failed to git commit: %v", err)
-	}
-}
-
 func TestDirtyWorkspaceCheck(t *testing.T) {
 	// Create a temporary directory for testing
 	tmpDir, err := os.MkdirTemp("", "giverny-outie-test-*")
@@ -57,7 +29,7 @@ func TestDirtyWorkspaceCheck(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Initialize a git repository
-	initTestRepo(t, tmpDir)
+	testutil.InitTestRepo(t, tmpDir)
 
 	// Change to temp directory for tests
 	origDir, err := os.Getwd()

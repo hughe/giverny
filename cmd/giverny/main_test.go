@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"giverny/internal/git"
 	"giverny/internal/outie"
+	"giverny/internal/testutil"
 )
 
 func TestMain(m *testing.M) {
@@ -238,7 +239,7 @@ func TestIsWorkspaceDirty_CleanWorkspace(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Initialize a git repository
-	initTestRepo(t, tmpDir)
+	testutil.InitTestRepo(t, tmpDir)
 
 	// Test isWorkspaceDirty by changing to the temp directory
 	originalDir, _ := os.Getwd()
@@ -331,7 +332,7 @@ func TestIsWorkspaceDirty_DirtyWorkspace(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Initialize a git repository
-	initTestRepo(t, tmpDir)
+	testutil.InitTestRepo(t, tmpDir)
 
 	// Make a change without committing
 	testFile := filepath.Join(tmpDir, "test.txt")
