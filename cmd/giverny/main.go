@@ -37,6 +37,7 @@ type Config struct {
 	Debug           bool
 	ShowBuildOutput bool
 	ExistingBranch  bool
+	AllowDirty      bool
 }
 
 var (
@@ -131,6 +132,7 @@ func main() {
 				Debug:           config.Debug,
 				ShowBuildOutput: config.ShowBuildOutput,
 				ExistingBranch:  config.ExistingBranch,
+				AllowDirty:      config.AllowDirty,
 			}
 			return outie.Run(outieConfig)
 		},
@@ -144,6 +146,7 @@ func main() {
 	rootCmd.Flags().BoolVar(&config.Debug, "debug", false, "Enable debug output")
 	rootCmd.Flags().BoolVar(&config.ShowBuildOutput, "show-build-output", false, "Show docker build output")
 	rootCmd.Flags().BoolVar(&config.ExistingBranch, "existing-branch", false, "Use existing branch instead of creating a new one")
+	rootCmd.Flags().BoolVar(&config.AllowDirty, "allow-dirty", false, "Allow creating branch even if working directory has uncommitted changes")
 
 	// Hidden flags (for internal use only)
 	rootCmd.Flags().BoolVar(&config.IsInnie, "innie", false, "Internal flag for running inside container")

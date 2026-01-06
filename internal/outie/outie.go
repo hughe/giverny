@@ -20,6 +20,7 @@ type Config struct {
 	Debug           bool
 	ShowBuildOutput bool
 	ExistingBranch  bool
+	AllowDirty      bool
 }
 
 // Run executes the Outie workflow
@@ -47,6 +48,17 @@ func Run(config Config) error {
 	// Validate CLAUDE_CODE_OAUTH_TOKEN is set
 	if os.Getenv("CLAUDE_CODE_OAUTH_TOKEN") == "" {
 		return fmt.Errorf("CLAUDE_CODE_OAUTH_TOKEN environment variable is not set.\nPlease set it with: export CLAUDE_CODE_OAUTH_TOKEN=your-token")
+	}
+
+	// Check for uncommitted changes before creating branch (unless --allow-dirty is set)
+	if !config.AllowDirty && !config.ExistingBranch {
+		isDirty, err := git.IsWorkspaceDirty()
+		if err != nil {
+			return fmt.Errorf("failed to check workspace status: %w", err)
+		}
+		if isDirty {
+			return fmt.Errorf("working directory has uncommitted changes. Commit or stash them first, or use --allow-dirty flag")
+		}
 	}
 
 	// Create or validate git branch for this task
