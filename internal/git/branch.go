@@ -129,3 +129,15 @@ func GetBranchCommitRange(branchName string) (firstCommit, lastCommit string, er
 
 	return firstCommit, lastCommit, nil
 }
+
+// GetShortHash converts a full git commit hash to its short form.
+// Returns the short hash (typically 7 characters) or the original hash if conversion fails.
+func GetShortHash(fullHash string) string {
+	cmd := exec.Command("git", "rev-parse", "--short", fullHash)
+	output, err := cmd.Output()
+	if err != nil {
+		// If we can't get the short hash, return the full hash
+		return fullHash
+	}
+	return strings.TrimSpace(string(output))
+}

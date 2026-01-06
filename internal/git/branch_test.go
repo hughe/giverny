@@ -502,3 +502,59 @@ func TestGetBranchCommitRange(t *testing.T) {
 		}
 	})
 }
+
+func TestGetShortHash(t *testing.T) {
+	// Create a temporary git repository for testing
+	tmpDir, err := os.MkdirTemp("", "giverny-git-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Initialize git repo
+	initTestRepo(t, tmpDir)
+
+	// Change to temp directory for tests
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	defer os.Chdir(origDir)
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp dir: %v", err)
+	}
+
+	// Get the full hash of HEAD
+	cmd := exec.Command("git", "rev-parse", "HEAD")
+	output, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("failed to get HEAD hash: %v", err)
+	}
+	fullHash := strings.TrimSpace(string(output))
+
+	// Get the short hash
+	shortHash := GetShortHash(fullHash)
+
+	// Verify the short hash is actually shorter
+	if len(shortHash) >= len(fullHash) {
+		t.Errorf("expected short hash to be shorter than full hash, got %d vs %d chars", len(shortHash), len(fullHash))
+	}
+
+	// Verify the short hash is typically 7 characters (can be more if needed for uniqueness)
+	if len(shortHash) < 7 {
+		t.Errorf("expected short hash to be at least 7 characters, got %d", len(shortHash))
+	}
+
+	// Verify the full hash starts with the short hash
+	if !strings.HasPrefix(fullHash, shortHash) {
+		t.Errorf("expected full hash %s to start with short hash %s", fullHash, shortHash)
+	}
+
+	// Test with an invalid hash - should return the original
+	invalidHash := "invalid-hash-xyz"
+	result := GetShortHash(invalidHash)
+	if result != invalidHash {
+		t.Errorf("expected GetShortHash to return original hash on error, got %s", result)
+	}
+}

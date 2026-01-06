@@ -140,13 +140,17 @@ func Run(config Config) error {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: failed to get commit range: %v\n", err)
 	} else if firstCommit != "" && lastCommit != "" {
+		// Convert to short hashes for display
+		firstShort := git.GetShortHash(firstCommit)
+		lastShort := git.GetShortHash(lastCommit)
+
 		fmt.Printf("\nOr to cherry-pick the changes:\n")
 		if firstCommit == lastCommit {
 			// Only one commit
-			fmt.Printf("  %s\n", terminal.Blue(fmt.Sprintf("git cherry-pick %s", firstCommit)))
+			fmt.Printf("  %s\n", terminal.Blue(fmt.Sprintf("git cherry-pick %s", firstShort)))
 		} else {
 			// Multiple commits
-			fmt.Printf("  %s\n", terminal.Blue(fmt.Sprintf("git cherry-pick %s^..%s", firstCommit, lastCommit)))
+			fmt.Printf("  %s\n", terminal.Blue(fmt.Sprintf("git cherry-pick %s^..%s", firstShort, lastShort)))
 		}
 	}
 
