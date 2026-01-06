@@ -124,4 +124,3 @@ func executeClaude(prompt, agentArgs string, interactive bool) error {
 	fmt.Printf("Claude completed successfully\n")
 	return nil
 }
-

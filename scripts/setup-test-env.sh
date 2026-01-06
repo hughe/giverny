@@ -12,10 +12,9 @@ echo "Setting up test environment in: $GIV_TEST_ENV_DIR"
 # Create directory structure
 mkdir -p "$GIV_TEST_ENV_DIR"
 
-# Initialize a git repository for testing
+# Initialize a git repository for testing with 'main' as the default branch
 cd "$GIV_TEST_ENV_DIR"
-git init
-git config init.defaultBranch main
+git init --initial-branch=main
 git config user.email "test@giverny.test"
 git config user.name "Giverny Test"
 

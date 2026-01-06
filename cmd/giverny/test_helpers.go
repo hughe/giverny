@@ -13,13 +13,12 @@ import (
 func initTestRepo(t *testing.T, dir string) {
 	t.Helper()
 
-	// Initialize a git repository
-	if err := cmdutil.RunCommandInDir(dir, "git", "init"); err != nil {
+	// Initialize a git repository with 'main' as the default branch
+	if err := cmdutil.RunCommandInDir(dir, "git", "init", "--initial-branch=main"); err != nil {
 		t.Fatalf("failed to init git repo: %v", err)
 	}
 
 	// Configure git
-	cmdutil.RunCommand("git", "-C", dir, "config", "init.defaultBranch", "main")
 	cmdutil.RunCommand("git", "-C", dir, "config", "user.email", "test@example.com")
 	cmdutil.RunCommand("git", "-C", dir, "config", "user.name", "Test User")
 

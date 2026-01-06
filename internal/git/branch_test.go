@@ -156,28 +156,27 @@ func TestBranchExists(t *testing.T) {
 }
 
 func TestGetBranchCommitRange(t *testing.T) {
-	// Create a temporary git repository for testing
-	tmpDir, err := os.MkdirTemp("", "giverny-git-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	// Initialize git repo
-	initTestRepo(t, tmpDir)
-
-	// Change to temp directory for tests
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to get working directory: %v", err)
-	}
-	defer os.Chdir(origDir)
-
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatalf("failed to change to temp dir: %v", err)
-	}
-
 	t.Run("returns empty when branch has no commits", func(t *testing.T) {
+		// Create a temporary git repository for this test
+		tmpDir, err := os.MkdirTemp("", "giverny-git-test-*")
+		if err != nil {
+			t.Fatalf("failed to create temp dir: %v", err)
+		}
+		defer os.RemoveAll(tmpDir)
+
+		// Initialize git repo
+		initTestRepo(t, tmpDir)
+
+		// Change to temp directory for this test
+		origDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("failed to get working directory: %v", err)
+		}
+		defer os.Chdir(origDir)
+
+		if err := os.Chdir(tmpDir); err != nil {
+			t.Fatalf("failed to change to temp dir: %v", err)
+		}
 		branchName := "giverny/test-empty"
 		if err := CreateBranch(branchName); err != nil {
 			t.Fatalf("failed to create branch: %v", err)
@@ -193,6 +192,27 @@ func TestGetBranchCommitRange(t *testing.T) {
 	})
 
 	t.Run("returns commit range with START label", func(t *testing.T) {
+		// Create a temporary git repository for this test
+		tmpDir, err := os.MkdirTemp("", "giverny-git-test-*")
+		if err != nil {
+			t.Fatalf("failed to create temp dir: %v", err)
+		}
+		defer os.RemoveAll(tmpDir)
+
+		// Initialize git repo
+		initTestRepo(t, tmpDir)
+
+		// Change to temp directory for this test
+		origDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("failed to get working directory: %v", err)
+		}
+		defer os.Chdir(origDir)
+
+		if err := os.Chdir(tmpDir); err != nil {
+			t.Fatalf("failed to change to temp dir: %v", err)
+		}
+
 		branchName := "giverny/test-with-commits"
 		if err := CreateBranch(branchName); err != nil {
 			t.Fatalf("failed to create branch: %v", err)
@@ -253,6 +273,27 @@ func TestGetBranchCommitRange(t *testing.T) {
 	})
 
 	t.Run("handles single commit", func(t *testing.T) {
+		// Create a temporary git repository for this test
+		tmpDir, err := os.MkdirTemp("", "giverny-git-test-*")
+		if err != nil {
+			t.Fatalf("failed to create temp dir: %v", err)
+		}
+		defer os.RemoveAll(tmpDir)
+
+		// Initialize git repo
+		initTestRepo(t, tmpDir)
+
+		// Change to temp directory for this test
+		origDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("failed to get working directory: %v", err)
+		}
+		defer os.Chdir(origDir)
+
+		if err := os.Chdir(tmpDir); err != nil {
+			t.Fatalf("failed to change to temp dir: %v", err)
+		}
+
 		branchName := "giverny/test-single-commit"
 		if err := CreateBranch(branchName); err != nil {
 			t.Fatalf("failed to create branch: %v", err)
@@ -305,22 +346,29 @@ func TestGetBranchCommitRange(t *testing.T) {
 		// 3. We need to find the commit range without the START label
 		//    (which only exists inside the container)
 
-		// Get the current branch name (could be 'main' or 'master')
-		cmd := exec.Command("git", "branch", "--show-current")
-		output, err := cmd.Output()
+		// Create a temporary git repository for this test
+		tmpDir, err := os.MkdirTemp("", "giverny-git-test-*")
 		if err != nil {
-			t.Fatalf("failed to get current branch: %v", err)
+			t.Fatalf("failed to create temp dir: %v", err)
 		}
-		defaultBranch := strings.TrimSpace(string(output))
+		defer os.RemoveAll(tmpDir)
 
-		// First, rename the default branch to 'main' for consistency
-		cmd = exec.Command("git", "branch", "-m", defaultBranch, "main")
-		if err := cmd.Run(); err != nil {
-			t.Fatalf("failed to rename branch to main: %v", err)
+		// Initialize git repo
+		initTestRepo(t, tmpDir)
+
+		// Change to temp directory for this test
+		origDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("failed to get working directory: %v", err)
+		}
+		defer os.Chdir(origDir)
+
+		if err := os.Chdir(tmpDir); err != nil {
+			t.Fatalf("failed to change to temp dir: %v", err)
 		}
 
 		// Make a commit on main
-		cmd = exec.Command("sh", "-c", "echo 'divergence-test-main' > divergence-main.txt && git add divergence-main.txt && git commit -m 'Commit on main'")
+		cmd := exec.Command("sh", "-c", "echo 'divergence-test-main' > divergence-main.txt && git add divergence-main.txt && git commit -m 'Commit on main'")
 		if err := cmd.Run(); err != nil {
 			t.Fatalf("failed to make commit on main: %v", err)
 		}
@@ -345,7 +393,7 @@ func TestGetBranchCommitRange(t *testing.T) {
 
 		// Get the first commit hash
 		cmd = exec.Command("git", "rev-parse", "HEAD")
-		output, err = cmd.Output()
+		output, err := cmd.Output()
 		if err != nil {
 			t.Fatalf("failed to get first commit hash: %v", err)
 		}
@@ -390,24 +438,29 @@ func TestGetBranchCommitRange(t *testing.T) {
 		// relative to the upstream. This is important for giverny's cherry-pick
 		// instructions which should always be relative to the main branch.
 
-		// Get the current branch name (could be 'main' or 'master')
-		cmd := exec.Command("git", "branch", "--show-current")
-		output, err := cmd.Output()
+		// Create a temporary git repository for this test
+		tmpDir, err := os.MkdirTemp("", "giverny-git-test-*")
 		if err != nil {
-			t.Fatalf("failed to get current branch: %v", err)
+			t.Fatalf("failed to create temp dir: %v", err)
 		}
-		defaultBranch := strings.TrimSpace(string(output))
+		defer os.RemoveAll(tmpDir)
 
-		// First, rename the default branch to 'main' for consistency
-		if defaultBranch != "main" {
-			cmd = exec.Command("git", "branch", "-m", defaultBranch, "main")
-			if err := cmd.Run(); err != nil {
-				t.Fatalf("failed to rename branch to main: %v", err)
-			}
+		// Initialize git repo
+		initTestRepo(t, tmpDir)
+
+		// Change to temp directory for this test
+		origDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("failed to get working directory: %v", err)
+		}
+		defer os.Chdir(origDir)
+
+		if err := os.Chdir(tmpDir); err != nil {
+			t.Fatalf("failed to change to temp dir: %v", err)
 		}
 
 		// Make a commit on main to establish a divergence point
-		cmd = exec.Command("sh", "-c", "echo 'upstream-test-main' > upstream-main.txt && git add upstream-main.txt && git commit -m 'Commit on main'")
+		cmd := exec.Command("sh", "-c", "echo 'upstream-test-main' > upstream-main.txt && git add upstream-main.txt && git commit -m 'Commit on main'")
 		if err := cmd.Run(); err != nil {
 			t.Fatalf("failed to make commit on main: %v", err)
 		}
@@ -432,7 +485,7 @@ func TestGetBranchCommitRange(t *testing.T) {
 
 		// Get the first commit hash
 		cmd = exec.Command("git", "rev-parse", "HEAD")
-		output, err = cmd.Output()
+		output, err := cmd.Output()
 		if err != nil {
 			t.Fatalf("failed to get first commit hash: %v", err)
 		}
