@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"giverny/internal/cmdutil"
 	"giverny/internal/terminal"
 )
 
@@ -85,8 +86,7 @@ func RunContainer(taskID, prompt string, gitPort int, dockerArgs, agentArgs stri
 
 // RemoveContainer removes a Docker container by name
 func RemoveContainer(containerName string) error {
-	cmd := exec.Command("docker", "rm", containerName)
-	if err := cmd.Run(); err != nil {
+	if err := cmdutil.RunCommand("docker", "rm", containerName); err != nil {
 		return fmt.Errorf("failed to remove container %s: %w", containerName, err)
 	}
 	fmt.Printf("✓ Container removed\n")

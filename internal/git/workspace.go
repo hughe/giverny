@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+
+	"giverny/internal/cmdutil"
 )
 
 // SetupWorkspace creates /app, checks out the branch, and creates a START label
@@ -14,12 +16,7 @@ func SetupWorkspace(branchName string, debug bool) error {
 	}
 
 	// Checkout the branch to /app using git worktree
-	cmd := exec.Command("git", "-C", "/git", "worktree", "add", "/app", branchName)
-	if debug {
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-	}
-	if err := cmd.Run(); err != nil {
+	if err := cmdutil.RunCommandWithDebug(debug, "git", "-C", "/git", "worktree", "add", "/app", branchName); err != nil {
 		return fmt.Errorf("failed to checkout branch %s to /app: %w", branchName, err)
 	}
 	if debug {
@@ -27,20 +24,17 @@ func SetupWorkspace(branchName string, debug bool) error {
 	}
 
 	// Configure git user for commits
-	cmd = exec.Command("git", "-C", "/app", "config", "user.email", "noreply@anthropic.com")
-	if err := cmd.Run(); err != nil {
+	if err := cmdutil.RunCommand("git", "-C", "/app", "config", "user.email", "noreply@anthropic.com"); err != nil {
 		return fmt.Errorf("failed to set git user.email: %w", err)
 	}
 
-	cmd = exec.Command("git", "-C", "/app", "config", "user.name", "Claude Code")
-	if err := cmd.Run(); err != nil {
+	if err := cmdutil.RunCommand("git", "-C", "/app", "config", "user.name", "Claude Code"); err != nil {
 		return fmt.Errorf("failed to set git user.name: %w", err)
 	}
 
 	// Create START label branch to mark where we started
 	startLabel := branchName + "-START"
-	cmd = exec.Command("git", "-C", "/app", "branch", startLabel)
-	if err := cmd.Run(); err != nil {
+	if err := cmdutil.RunCommand("git", "-C", "/app", "branch", startLabel); err != nil {
 		return fmt.Errorf("failed to create START label branch %s: %w", startLabel, err)
 	}
 	if debug {
@@ -70,16 +64,7 @@ func PushBranch(branchName string, gitServerPort int, debug bool) error {
 	gitServerURL := fmt.Sprintf("git://host.docker.internal:%d/", gitServerPort)
 
 	// Push the branch
-	cmd := exec.Command("git", "push", gitServerURL, branchName)
-	cmd.Dir = "/app"
-
-	// Only show output if debug flag is set
-	if debug {
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-	}
-
-	if err := cmd.Run(); err != nil {
+	if err := cmdutil.RunCommandInDirWithDebug("/app", debug, "git", "push", gitServerURL, branchName); err != nil {
 		return fmt.Errorf("git push failed: %w", err)
 	}
 

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+
+	"giverny/internal/cmdutil"
 )
 
 // CreateBranch creates a new git branch at the current HEAD without checking it out.
@@ -52,29 +54,21 @@ func BranchExists(branchName string) (bool, error) {
 // ensuring cherry-pick instructions are relative to the main branch.
 func GetBranchCommitRange(branchName string) (firstCommit, lastCommit string, err error) {
 	// Get the last commit (HEAD of the branch)
-	cmd := exec.Command("git", "rev-parse", branchName)
-	output, err := cmd.Output()
+	lastCommit, err = cmdutil.RunCommandWithOutput("git", "rev-parse", branchName)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get last commit for branch '%s': %w", branchName, err)
 	}
-	lastCommit = strings.TrimSpace(string(output))
 
 	// Strategy 1: Check if START label exists (used inside containers)
 	startLabel := branchName + "-START"
-	cmd = exec.Command("git", "rev-parse", "--verify", startLabel)
-	output, err = cmd.Output()
+	startCommit, err := cmdutil.RunCommandWithOutput("git", "rev-parse", "--verify", startLabel)
 	if err == nil {
 		// START label exists, get the first commit after it
-		startCommit := strings.TrimSpace(string(output))
-
 		// Check if there are any commits between START and the branch HEAD
-		cmd = exec.Command("git", "rev-list", "--reverse", startCommit+".."+branchName)
-		output, err = cmd.Output()
+		commits, err := cmdutil.RunCommandWithOutput("git", "rev-list", "--reverse", startCommit+".."+branchName)
 		if err != nil {
 			return "", "", fmt.Errorf("failed to get commits after START label: %w", err)
 		}
-
-		commits := strings.TrimSpace(string(output))
 		if commits == "" {
 			// No commits after START label
 			return "", "", nil
@@ -94,15 +88,12 @@ func GetBranchCommitRange(branchName string) (firstCommit, lastCommit string, er
 	parentBranch := "main"
 
 	// Find the merge-base (common ancestor) between the branch and its parent
-	cmd = exec.Command("git", "merge-base", parentBranch, branchName)
-	output, err = cmd.Output()
+	mergeBase, err := cmdutil.RunCommandWithOutput("git", "merge-base", parentBranch, branchName)
 	if err != nil {
 		// If merge-base fails, the branches may not share history
 		// Fall back to returning empty (no commits to cherry-pick)
 		return "", "", nil
 	}
-
-	mergeBase := strings.TrimSpace(string(output))
 
 	// Check if the branch has diverged at all
 	if mergeBase == lastCommit {
@@ -111,13 +102,10 @@ func GetBranchCommitRange(branchName string) (firstCommit, lastCommit string, er
 	}
 
 	// Get all commits from merge-base to branch HEAD
-	cmd = exec.Command("git", "rev-list", "--reverse", mergeBase+".."+branchName)
-	output, err = cmd.Output()
+	commits, err := cmdutil.RunCommandWithOutput("git", "rev-list", "--reverse", mergeBase+".."+branchName)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get commits after merge-base: %w", err)
 	}
-
-	commits := strings.TrimSpace(string(output))
 	if commits == "" {
 		// No commits after merge-base
 		return "", "", nil
@@ -133,11 +121,10 @@ func GetBranchCommitRange(branchName string) (firstCommit, lastCommit string, er
 // GetShortHash converts a full git commit hash to its short form.
 // Returns the short hash (typically 7 characters) or the original hash if conversion fails.
 func GetShortHash(fullHash string) string {
-	cmd := exec.Command("git", "rev-parse", "--short", fullHash)
-	output, err := cmd.Output()
+	shortHash, err := cmdutil.RunCommandWithOutput("git", "rev-parse", "--short", fullHash)
 	if err != nil {
 		// If we can't get the short hash, return the full hash
 		return fullHash
 	}
-	return strings.TrimSpace(string(output))
+	return shortHash
 }

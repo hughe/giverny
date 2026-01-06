@@ -2,9 +2,10 @@ package git
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"giverny/internal/cmdutil"
 )
 
 // initTestRepo initializes a git repository in the given directory with an initial commit.
@@ -14,16 +15,14 @@ func initTestRepo(t *testing.T, dir string, content ...string) {
 	t.Helper()
 
 	// Initialize git repo
-	cmd := exec.Command("git", "init")
-	cmd.Dir = dir
-	if err := cmd.Run(); err != nil {
+	if err := cmdutil.RunCommandInDir(dir, "git", "init"); err != nil {
 		t.Fatalf("failed to init git repo: %v", err)
 	}
 
 	// Configure git repo
-	exec.Command("git", "-C", dir, "config", "init.defaultBranch", "main").Run()
-	exec.Command("git", "-C", dir, "config", "user.email", "test@example.com").Run()
-	exec.Command("git", "-C", dir, "config", "user.name", "Test User").Run()
+	cmdutil.RunCommand("git", "-C", dir, "config", "init.defaultBranch", "main")
+	cmdutil.RunCommand("git", "-C", dir, "config", "user.email", "test@example.com")
+	cmdutil.RunCommand("git", "-C", dir, "config", "user.name", "Test User")
 
 	// Determine content to write
 	fileContent := "test"
@@ -36,8 +35,8 @@ func initTestRepo(t *testing.T, dir string, content ...string) {
 	if err := os.WriteFile(testFile, []byte(fileContent), 0644); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
-	exec.Command("git", "-C", dir, "add", ".").Run()
-	if err := exec.Command("git", "-C", dir, "commit", "-m", "initial commit").Run(); err != nil {
+	cmdutil.RunCommand("git", "-C", dir, "add", ".")
+	if err := cmdutil.RunCommand("git", "-C", dir, "commit", "-m", "initial commit"); err != nil {
 		t.Fatalf("failed to create initial commit: %v", err)
 	}
 }
