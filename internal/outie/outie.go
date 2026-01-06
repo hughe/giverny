@@ -131,15 +131,15 @@ func Run(config Config) error {
 		fmt.Fprintf(os.Stderr, "Warning: failed to remove container: %v\n", err)
 	}
 
-	// Print merge instructions
-	fmt.Printf("\nTo merge the changes into your main branch:\n")
-	fmt.Printf("  %s\n", terminal.Blue(fmt.Sprintf("git merge --ff-only %s", branchName)))
-
-	// Get commit range for cherry-pick instructions
+	// Get commit range for merge/cherry-pick instructions
 	firstCommit, lastCommit, err := git.GetBranchCommitRange(branchName)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: failed to get commit range: %v\n", err)
 	} else if firstCommit != "" && lastCommit != "" {
+		// Only show merge instructions if branch has commits
+		fmt.Printf("\nTo merge the changes into your main branch:\n")
+		fmt.Printf("  %s\n", terminal.Blue(fmt.Sprintf("git merge --ff-only %s", branchName)))
+
 		// Convert to short hashes for display
 		firstShort := git.GetShortHash(firstCommit)
 		lastShort := git.GetShortHash(lastCommit)
@@ -152,10 +152,10 @@ func Run(config Config) error {
 			// Multiple commits
 			fmt.Printf("  %s\n", terminal.Blue(fmt.Sprintf("git cherry-pick %s^..%s", firstShort, lastShort)))
 		}
-	}
 
-	fmt.Printf("\nTo delete the branch after merging:\n")
-	fmt.Printf("  %s\n", terminal.Blue(fmt.Sprintf("git branch -d %s", branchName)))
+		fmt.Printf("\nTo delete the branch:\n")
+		fmt.Printf("  %s\n", terminal.Blue(fmt.Sprintf("git branch -D %s", branchName)))
+	}
 
 	return nil
 }
