@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"giverny/internal/beads"
-	"giverny/internal/gitops"
+	"giverny/internal/git"
 	"giverny/internal/interactive"
 )
 
@@ -22,11 +22,6 @@ type Config struct {
 
 // Run executes the Innie workflow
 func Run(config Config) error {
-	return RunWithDeps(config, gitops.NewRealGitOps())
-}
-
-// RunWithDeps executes the Innie workflow with injected dependencies
-func RunWithDeps(config Config, git gitops.GitOps) error {
 	if config.Debug {
 		fmt.Printf("Running Innie for task: %s\n", config.TaskID)
 		fmt.Printf("Prompt: %s\n", config.Prompt)

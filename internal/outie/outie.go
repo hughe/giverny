@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"giverny/internal/dockerops"
-	"giverny/internal/gitops"
+	"giverny/internal/docker"
+	"giverny/internal/git"
 	"giverny/internal/terminal"
 )
 
@@ -25,11 +25,6 @@ type Config struct {
 
 // Run executes the Outie workflow
 func Run(config Config) error {
-	return RunWithDeps(config, gitops.NewRealGitOps(), dockerops.NewRealDockerOps())
-}
-
-// RunWithDeps executes the Outie workflow with injected dependencies
-func RunWithDeps(config Config, git gitops.GitOps, docker dockerops.DockerOps) error {
 	// Save the current terminal title and set it to "Giverny: TASK-ID"
 	originalTitle := terminal.GetTitle()
 	terminal.SetTitle(fmt.Sprintf("Giverny: %s", config.TaskID))

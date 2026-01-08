@@ -15,7 +15,7 @@ import (
 var EmbeddedSource embed.FS
 
 // DiffreviewerVersion specifies the version of diffreviewer to install
-const DiffreviewerVersion = "v0.2.1"
+const DiffreviewerVersion = "v0.2.0"
 
 const dockerfileDepsTemplate = `# Multi-stage build for Giverny dependencies
 # This builds the giverny binary, diffreviewer, and beads
