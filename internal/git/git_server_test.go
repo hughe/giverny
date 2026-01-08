@@ -102,3 +102,144 @@ func TestRandomPort(t *testing.T) {
 		}
 	}
 }
+
+func TestPollForPidFile(t *testing.T) {
+	t.Run("reads valid PID from existing file", func(t *testing.T) {
+		pidFile, err := os.CreateTemp("", "test-pid-*")
+		if err != nil {
+			t.Fatalf("failed to create temp file: %v", err)
+		}
+		defer os.Remove(pidFile.Name())
+
+		// Write a valid PID
+		expectedPid := 12345
+		fmt.Fprintf(pidFile, "%d\n", expectedPid)
+		pidFile.Close()
+
+		pid, err := pollForPidFile(pidFile.Name(), 100*time.Millisecond)
+		if err != nil {
+			t.Errorf("pollForPidFile() error = %v, want nil", err)
+		}
+		if pid != expectedPid {
+			t.Errorf("pollForPidFile() = %d, want %d", pid, expectedPid)
+		}
+	})
+
+	t.Run("times out when file never appears", func(t *testing.T) {
+		nonExistentFile := "/tmp/nonexistent-pid-file-" + fmt.Sprintf("%d", time.Now().UnixNano())
+
+		start := time.Now()
+		pid, err := pollForPidFile(nonExistentFile, 100*time.Millisecond)
+		elapsed := time.Since(start)
+
+		if err == nil {
+			t.Error("pollForPidFile() error = nil, want timeout error")
+		}
+		if pid != 0 {
+			t.Errorf("pollForPidFile() = %d, want 0", pid)
+		}
+		if elapsed < 100*time.Millisecond {
+			t.Errorf("pollForPidFile() returned too quickly: %v", elapsed)
+		}
+	})
+
+	t.Run("waits for empty file to be filled", func(t *testing.T) {
+		pidFile, err := os.CreateTemp("", "test-pid-*")
+		if err != nil {
+			t.Fatalf("failed to create temp file: %v", err)
+		}
+		defer os.Remove(pidFile.Name())
+		pidFile.Close()
+
+		expectedPid := 54321
+
+		// Simulate delayed write
+		go func() {
+			time.Sleep(50 * time.Millisecond)
+			os.WriteFile(pidFile.Name(), []byte(fmt.Sprintf("%d\n", expectedPid)), 0644)
+		}()
+
+		pid, err := pollForPidFile(pidFile.Name(), 200*time.Millisecond)
+		if err != nil {
+			t.Errorf("pollForPidFile() error = %v, want nil", err)
+		}
+		if pid != expectedPid {
+			t.Errorf("pollForPidFile() = %d, want %d", pid, expectedPid)
+		}
+	})
+
+	t.Run("waits for file to appear", func(t *testing.T) {
+		pidFilePath := "/tmp/delayed-pid-file-" + fmt.Sprintf("%d", time.Now().UnixNano())
+		defer os.Remove(pidFilePath)
+
+		expectedPid := 99999
+
+		// Simulate delayed file creation
+		go func() {
+			time.Sleep(50 * time.Millisecond)
+			os.WriteFile(pidFilePath, []byte(fmt.Sprintf("%d\n", expectedPid)), 0644)
+		}()
+
+		pid, err := pollForPidFile(pidFilePath, 200*time.Millisecond)
+		if err != nil {
+			t.Errorf("pollForPidFile() error = %v, want nil", err)
+		}
+		if pid != expectedPid {
+			t.Errorf("pollForPidFile() = %d, want %d", pid, expectedPid)
+		}
+	})
+
+	t.Run("handles invalid content then valid content", func(t *testing.T) {
+		pidFile, err := os.CreateTemp("", "test-pid-*")
+		if err != nil {
+			t.Fatalf("failed to create temp file: %v", err)
+		}
+		defer os.Remove(pidFile.Name())
+
+		// Write invalid content initially
+		pidFile.WriteString("invalid\n")
+		pidFile.Close()
+
+		expectedPid := 77777
+
+		// Simulate fixing the content
+		go func() {
+			time.Sleep(50 * time.Millisecond)
+			os.WriteFile(pidFile.Name(), []byte(fmt.Sprintf("%d\n", expectedPid)), 0644)
+		}()
+
+		pid, err := pollForPidFile(pidFile.Name(), 200*time.Millisecond)
+		if err != nil {
+			t.Errorf("pollForPidFile() error = %v, want nil", err)
+		}
+		if pid != expectedPid {
+			t.Errorf("pollForPidFile() = %d, want %d", pid, expectedPid)
+		}
+	})
+
+	t.Run("respects timeout with invalid content", func(t *testing.T) {
+		pidFile, err := os.CreateTemp("", "test-pid-*")
+		if err != nil {
+			t.Fatalf("failed to create temp file: %v", err)
+		}
+		defer os.Remove(pidFile.Name())
+
+		// Write invalid content that never gets fixed
+		pidFile.WriteString("always-invalid\n")
+		pidFile.Close()
+
+		start := time.Now()
+		pid, err := pollForPidFile(pidFile.Name(), 100*time.Millisecond)
+		elapsed := time.Since(start)
+
+		if err == nil {
+			t.Error("pollForPidFile() error = nil, want timeout error")
+		}
+		if pid != 0 {
+			t.Errorf("pollForPidFile() = %d, want 0", pid)
+		}
+		if elapsed < 100*time.Millisecond {
+			t.Errorf("pollForPidFile() returned too quickly: %v", elapsed)
+		}
+	})
+}
