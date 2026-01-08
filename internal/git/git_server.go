@@ -1,12 +1,10 @@
 package git
 
 import (
-	"bufio"
 	"fmt"
 	"math/rand"
 	"os"
 	"os/exec"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -16,9 +14,8 @@ const (
 	maxPort        = 9999
 	maxRetries     = 10
 	startupTimeout = 2 * time.Second
+	pidPollInterval = 10 * time.Millisecond
 )
-
-var readyPattern = regexp.MustCompile(`Ready to rumble`)
 
 // StartServer starts a git daemon server on a random port between 2001-9999.
 // It enables receive-pack to allow pushing and retries on port conflicts.
@@ -70,17 +67,6 @@ func tryStartServer(repoPath string, port int) (*ServerCmd, error) {
 		"--pid-file="+pidFilePath,
 	)
 
-	// Capture stderr to monitor for "Ready to rumble" message
-	//
-	// TODO: Rather than capturing stderr, and searching for "Ready to
-	// rumble" could we poll for the existance of the pid file that
-	// has length > 0?
-	//
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create stderr pipe: %w", err)
-	}
-
 	// Start the server
 	if err := cmd.Start(); err != nil {
 		// Check if it's a port conflict
@@ -90,51 +76,52 @@ func tryStartServer(repoPath string, port int) (*ServerCmd, error) {
 		return nil, fmt.Errorf("failed to start git server on port %d: %w", port, err)
 	}
 
-	// Channel to signal when server is ready
-	ready := make(chan bool, 1)
-	errChan := make(chan error, 1)
+	// Poll for the PID file to be created with valid content
+	actualPid, err := pollForPidFile(pidFilePath, startupTimeout)
+	if err != nil {
+		cmd.Process.Kill()
+		cmd.Wait()
+		return nil, fmt.Errorf("failed to start git server on port %d: %w", port, err)
+	}
 
-	// Read stderr in a goroutine to detect when server is ready
-	go func() {
-		scanner := bufio.NewScanner(stderr)
-		for scanner.Scan() {
-			line := scanner.Text()
-			if readyPattern.MatchString(line) {
-				ready <- true
-				return
-			}
-		}
-		if err := scanner.Err(); err != nil {
-			errChan <- fmt.Errorf("error reading stderr: %w", err)
-		}
-	}()
+	return &ServerCmd{Cmd: cmd, ActualPid: actualPid}, nil
+}
 
-	// Wait for ready message or timeout
-	select {
-	case <-ready:
-		// Read the PID from the PID file
+// pollForPidFile polls for the PID file to be created and contain a valid PID.
+// It polls at regular intervals until the timeout is reached.
+func pollForPidFile(pidFilePath string, timeout time.Duration) (int, error) {
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		// Check if file exists and has content
 		pidData, err := os.ReadFile(pidFilePath)
 		if err != nil {
-			cmd.Process.Kill()
-			cmd.Wait()
-			return nil, fmt.Errorf("failed to read PID file: %w", err)
+			// File doesn't exist yet or can't be read, keep polling
+			time.Sleep(pidPollInterval)
+			continue
 		}
+
+		// File exists, check if it has content
+		if len(pidData) == 0 {
+			// File exists but is empty, keep polling
+			time.Sleep(pidPollInterval)
+			continue
+		}
+
+		// Parse the PID
 		var actualPid int
 		if _, err := fmt.Sscanf(string(pidData), "%d", &actualPid); err != nil {
-			cmd.Process.Kill()
-			cmd.Wait()
-			return nil, fmt.Errorf("failed to parse PID from file: %w", err)
+			// File has content but can't be parsed, keep polling
+			// (git daemon might be in the middle of writing)
+			time.Sleep(pidPollInterval)
+			continue
 		}
-		return &ServerCmd{Cmd: cmd, ActualPid: actualPid}, nil
-	case err := <-errChan:
-		cmd.Process.Kill()
-		cmd.Wait()
-		return nil, err
-	case <-time.After(startupTimeout):
-		cmd.Process.Kill()
-		cmd.Wait()
-		return nil, fmt.Errorf("git server startup timeout on port %d", port)
+
+		// Successfully read a valid PID
+		return actualPid, nil
 	}
+
+	return 0, fmt.Errorf("timeout waiting for PID file")
 }
 
 // StopServer stops a running git server process
