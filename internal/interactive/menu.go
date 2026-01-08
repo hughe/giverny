@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"giverny/internal/git"
+	"giverny/internal/shell"
 )
 
 // PostClaudeMenu shows an interactive menu for committing, restarting, or exiting.
@@ -72,17 +73,12 @@ func PostClaudeMenu(executeClaude func(prompt string, interactive bool) error, r
 
 // startShell starts an interactive shell in /app
 func startShell() error {
-	// Determine which shell to use (prefer zsh, then bash, then sh)
-	shell := "/bin/sh"
-	if _, err := os.Stat("/bin/zsh"); err == nil {
-		shell = "/bin/zsh"
-	} else if _, err := os.Stat("/bin/bash"); err == nil {
-		shell = "/bin/bash"
-	}
+	// Determine which shell to use
+	shellPath := shell.Detect()
 
-	fmt.Printf("Starting %s in /app (type 'exit' to return to menu)...\n", shell)
+	fmt.Printf("Starting %s in /app (type 'exit' to return to menu)...\n", shellPath)
 
-	cmd := exec.Command(shell)
+	cmd := exec.Command(shellPath)
 	cmd.Dir = "/app"
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
