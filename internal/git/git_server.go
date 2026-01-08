@@ -77,7 +77,7 @@ func tryStartServer(repoPath string, port int) (*ServerCmd, error) {
 	}
 
 	// Poll for the PID file to be created with valid content
-	actualPid, err := pollForPidFile(pidFilePath, startupTimeout)
+	actualPid, err := pollForPidFile(pidFilePath, startupTimeout, os.ReadFile)
 	if err != nil {
 		cmd.Process.Kill()
 		cmd.Wait()
@@ -87,14 +87,18 @@ func tryStartServer(repoPath string, port int) (*ServerCmd, error) {
 	return &ServerCmd{Cmd: cmd, ActualPid: actualPid}, nil
 }
 
+// fileReader is a function type for reading file contents
+type fileReader func(string) ([]byte, error)
+
 // pollForPidFile polls for the PID file to be created and contain a valid PID.
 // It polls at regular intervals until the timeout is reached.
-func pollForPidFile(pidFilePath string, timeout time.Duration) (int, error) {
+// The readFile parameter allows dependency injection for testing.
+func pollForPidFile(pidFilePath string, timeout time.Duration, readFile fileReader) (int, error) {
 	deadline := time.Now().Add(timeout)
 
 	for time.Now().Before(deadline) {
 		// Check if file exists and has content
-		pidData, err := os.ReadFile(pidFilePath)
+		pidData, err := readFile(pidFilePath)
 		if err != nil {
 			// File doesn't exist yet or can't be read, keep polling
 			time.Sleep(pidPollInterval)

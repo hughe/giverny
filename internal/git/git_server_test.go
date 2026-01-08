@@ -104,19 +104,13 @@ func TestRandomPort(t *testing.T) {
 }
 
 func TestPollForPidFile(t *testing.T) {
-	t.Run("reads valid PID from existing file", func(t *testing.T) {
-		pidFile, err := os.CreateTemp("", "test-pid-*")
-		if err != nil {
-			t.Fatalf("failed to create temp file: %v", err)
-		}
-		defer os.Remove(pidFile.Name())
-
-		// Write a valid PID
+	t.Run("reads valid PID immediately", func(t *testing.T) {
 		expectedPid := 12345
-		fmt.Fprintf(pidFile, "%d\n", expectedPid)
-		pidFile.Close()
+		mockReader := func(path string) ([]byte, error) {
+			return []byte(fmt.Sprintf("%d\n", expectedPid)), nil
+		}
 
-		pid, err := pollForPidFile(pidFile.Name(), 100*time.Millisecond)
+		pid, err := pollForPidFile("test.pid", 100*time.Millisecond, mockReader)
 		if err != nil {
 			t.Errorf("pollForPidFile() error = %v, want nil", err)
 		}
@@ -126,10 +120,14 @@ func TestPollForPidFile(t *testing.T) {
 	})
 
 	t.Run("times out when file never appears", func(t *testing.T) {
-		nonExistentFile := "/tmp/nonexistent-pid-file-" + fmt.Sprintf("%d", time.Now().UnixNano())
+		callCount := 0
+		mockReader := func(path string) ([]byte, error) {
+			callCount++
+			return nil, os.ErrNotExist
+		}
 
 		start := time.Now()
-		pid, err := pollForPidFile(nonExistentFile, 100*time.Millisecond)
+		pid, err := pollForPidFile("test.pid", 50*time.Millisecond, mockReader)
 		elapsed := time.Since(start)
 
 		if err == nil {
@@ -138,98 +136,96 @@ func TestPollForPidFile(t *testing.T) {
 		if pid != 0 {
 			t.Errorf("pollForPidFile() = %d, want 0", pid)
 		}
-		if elapsed < 100*time.Millisecond {
+		if elapsed < 50*time.Millisecond {
 			t.Errorf("pollForPidFile() returned too quickly: %v", elapsed)
+		}
+		if callCount < 2 {
+			t.Errorf("mockReader called %d times, want at least 2", callCount)
 		}
 	})
 
 	t.Run("waits for empty file to be filled", func(t *testing.T) {
-		pidFile, err := os.CreateTemp("", "test-pid-*")
-		if err != nil {
-			t.Fatalf("failed to create temp file: %v", err)
-		}
-		defer os.Remove(pidFile.Name())
-		pidFile.Close()
-
+		callCount := 0
 		expectedPid := 54321
+		mockReader := func(path string) ([]byte, error) {
+			callCount++
+			if callCount <= 3 {
+				// First few calls return empty
+				return []byte{}, nil
+			}
+			// Later calls return valid PID
+			return []byte(fmt.Sprintf("%d\n", expectedPid)), nil
+		}
 
-		// Simulate delayed write
-		go func() {
-			time.Sleep(50 * time.Millisecond)
-			os.WriteFile(pidFile.Name(), []byte(fmt.Sprintf("%d\n", expectedPid)), 0644)
-		}()
-
-		pid, err := pollForPidFile(pidFile.Name(), 200*time.Millisecond)
+		pid, err := pollForPidFile("test.pid", 200*time.Millisecond, mockReader)
 		if err != nil {
 			t.Errorf("pollForPidFile() error = %v, want nil", err)
 		}
 		if pid != expectedPid {
 			t.Errorf("pollForPidFile() = %d, want %d", pid, expectedPid)
+		}
+		if callCount <= 3 {
+			t.Errorf("expected multiple polls, got %d", callCount)
 		}
 	})
 
 	t.Run("waits for file to appear", func(t *testing.T) {
-		pidFilePath := "/tmp/delayed-pid-file-" + fmt.Sprintf("%d", time.Now().UnixNano())
-		defer os.Remove(pidFilePath)
-
+		callCount := 0
 		expectedPid := 99999
+		mockReader := func(path string) ([]byte, error) {
+			callCount++
+			if callCount <= 3 {
+				// First few calls file doesn't exist
+				return nil, os.ErrNotExist
+			}
+			// Later calls return valid PID
+			return []byte(fmt.Sprintf("%d\n", expectedPid)), nil
+		}
 
-		// Simulate delayed file creation
-		go func() {
-			time.Sleep(50 * time.Millisecond)
-			os.WriteFile(pidFilePath, []byte(fmt.Sprintf("%d\n", expectedPid)), 0644)
-		}()
-
-		pid, err := pollForPidFile(pidFilePath, 200*time.Millisecond)
+		pid, err := pollForPidFile("test.pid", 200*time.Millisecond, mockReader)
 		if err != nil {
 			t.Errorf("pollForPidFile() error = %v, want nil", err)
 		}
 		if pid != expectedPid {
 			t.Errorf("pollForPidFile() = %d, want %d", pid, expectedPid)
+		}
+		if callCount <= 3 {
+			t.Errorf("expected multiple polls, got %d", callCount)
 		}
 	})
 
 	t.Run("handles invalid content then valid content", func(t *testing.T) {
-		pidFile, err := os.CreateTemp("", "test-pid-*")
-		if err != nil {
-			t.Fatalf("failed to create temp file: %v", err)
-		}
-		defer os.Remove(pidFile.Name())
-
-		// Write invalid content initially
-		pidFile.WriteString("invalid\n")
-		pidFile.Close()
-
+		callCount := 0
 		expectedPid := 77777
+		mockReader := func(path string) ([]byte, error) {
+			callCount++
+			if callCount <= 3 {
+				// First few calls return invalid content
+				return []byte("invalid\n"), nil
+			}
+			// Later calls return valid PID
+			return []byte(fmt.Sprintf("%d\n", expectedPid)), nil
+		}
 
-		// Simulate fixing the content
-		go func() {
-			time.Sleep(50 * time.Millisecond)
-			os.WriteFile(pidFile.Name(), []byte(fmt.Sprintf("%d\n", expectedPid)), 0644)
-		}()
-
-		pid, err := pollForPidFile(pidFile.Name(), 200*time.Millisecond)
+		pid, err := pollForPidFile("test.pid", 200*time.Millisecond, mockReader)
 		if err != nil {
 			t.Errorf("pollForPidFile() error = %v, want nil", err)
 		}
 		if pid != expectedPid {
 			t.Errorf("pollForPidFile() = %d, want %d", pid, expectedPid)
 		}
+		if callCount <= 3 {
+			t.Errorf("expected multiple polls, got %d", callCount)
+		}
 	})
 
 	t.Run("respects timeout with invalid content", func(t *testing.T) {
-		pidFile, err := os.CreateTemp("", "test-pid-*")
-		if err != nil {
-			t.Fatalf("failed to create temp file: %v", err)
+		mockReader := func(path string) ([]byte, error) {
+			return []byte("always-invalid\n"), nil
 		}
-		defer os.Remove(pidFile.Name())
-
-		// Write invalid content that never gets fixed
-		pidFile.WriteString("always-invalid\n")
-		pidFile.Close()
 
 		start := time.Now()
-		pid, err := pollForPidFile(pidFile.Name(), 100*time.Millisecond)
+		pid, err := pollForPidFile("test.pid", 50*time.Millisecond, mockReader)
 		elapsed := time.Since(start)
 
 		if err == nil {
@@ -238,8 +234,33 @@ func TestPollForPidFile(t *testing.T) {
 		if pid != 0 {
 			t.Errorf("pollForPidFile() = %d, want 0", pid)
 		}
-		if elapsed < 100*time.Millisecond {
+		if elapsed < 50*time.Millisecond {
 			t.Errorf("pollForPidFile() returned too quickly: %v", elapsed)
+		}
+	})
+
+	t.Run("handles read errors gracefully", func(t *testing.T) {
+		callCount := 0
+		expectedPid := 11111
+		mockReader := func(path string) ([]byte, error) {
+			callCount++
+			if callCount <= 2 {
+				// First few calls return different errors
+				if callCount == 1 {
+					return nil, os.ErrPermission
+				}
+				return nil, fmt.Errorf("temporary read error")
+			}
+			// Later calls succeed
+			return []byte(fmt.Sprintf("%d\n", expectedPid)), nil
+		}
+
+		pid, err := pollForPidFile("test.pid", 200*time.Millisecond, mockReader)
+		if err != nil {
+			t.Errorf("pollForPidFile() error = %v, want nil", err)
+		}
+		if pid != expectedPid {
+			t.Errorf("pollForPidFile() = %d, want %d", pid, expectedPid)
 		}
 	})
 }
