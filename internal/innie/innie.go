@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"strings"
 
-	"giverny/internal/beads"
 	"giverny/internal/gitops"
 	"giverny/internal/interactive"
 )
@@ -68,12 +67,6 @@ func RunWithDeps(config Config, git gitops.GitOps) error {
 	// Change to /app directory for all subsequent operations
 	if err := os.Chdir("/app"); err != nil {
 		return fmt.Errorf("failed to change to /app directory: %w", err)
-	}
-
-	// Initialize beads if .beads directory exists and bd is available
-	if err := beads.Initialize(config.Debug); err != nil {
-		// Log warning but don't fail - beads initialization is optional
-		fmt.Fprintf(os.Stderr, "Warning: beads initialization failed: %v\n", err)
 	}
 
 	// Execute agent with the prompt
