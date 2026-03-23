@@ -6,5 +6,5 @@ import "embed"
 // This allows giverny to build the innie image without requiring
 // access to the source code directory at runtime.
 //
-//go:embed cmd internal go.mod go.sum source.go Makefile
+//go:embed cmd internal scripts go.mod go.sum source.go Makefile
 var Source embed.FS

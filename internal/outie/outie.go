@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"giverny/internal/ctrlsock"
 	"giverny/internal/dockerops"
 	"giverny/internal/gitops"
 	"giverny/internal/terminal"
@@ -113,6 +114,27 @@ func RunWithDeps(config Config, git gitops.GitOps, docker dockerops.DockerOps) e
 		return fmt.Errorf("failed to build image: %w", err)
 	}
 
+	// Start control server for innie-to-outie communication
+	containerName := fmt.Sprintf("giverny-%s", config.TaskID)
+	ctrlListener, err := ctrlsock.Listen(containerName, config.Debug)
+	if err != nil {
+		return fmt.Errorf("failed to start control server: %w", err)
+	}
+	defer ctrlListener.Close()
+	if config.Debug {
+		fmt.Printf("Control server listening on port: %d\n", ctrlListener.Port())
+	}
+
+	// Pass the control server address to the container via env var.
+	// Innie connects to host.docker.internal to reach the host.
+	ctrlAddr := fmt.Sprintf("host.docker.internal:%d", ctrlListener.Port())
+	ctrlArgs := fmt.Sprintf("--env %s=%s", ctrlsock.EnvVar, ctrlAddr)
+	if config.DockerArgs != "" {
+		config.DockerArgs = config.DockerArgs + " " + ctrlArgs
+	} else {
+		config.DockerArgs = ctrlArgs
+	}
+
 	if config.Debug {
 		fmt.Printf("Running Outie for task: %s\n", config.TaskID)
 		fmt.Printf("Prompt: %s\n", config.Prompt)
@@ -126,7 +148,6 @@ func RunWithDeps(config Config, git gitops.GitOps, docker dockerops.DockerOps) e
 	exitCode, err := docker.RunContainer(config.TaskID, config.Prompt, gitPort, config.DockerArgs, config.AgentArgs, config.Debug, config.UseAmp)
 
 	// Post-container cleanup
-	containerName := fmt.Sprintf("giverny-%s", config.TaskID)
 
 	if err != nil || exitCode != 0 {
 		// On failure: keep container for debugging, print error

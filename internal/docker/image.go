@@ -115,8 +115,13 @@ RUN npm install -g @sourcegraph/amp
 
 # Copy binaries from giverny-deps image
 COPY --from=giverny-deps:latest /output/giverny /usr/local/bin/giverny
-COPY --from=giverny-deps:latest /output/diffreviewer /usr/local/bin/diffreviewer
 COPY --from=giverny-deps:latest /output/br /usr/local/bin/br
+
+# Install diffreviewer: real binary in /usr/local/lib/giverny, wrapper in PATH
+RUN mkdir -p /usr/local/lib/giverny
+COPY --from=giverny-deps:latest /output/diffreviewer /usr/local/lib/giverny/diffreviewer
+COPY scripts/diffreviewer-wrapper.sh /usr/local/bin/diffreviewer
+RUN chmod +x /usr/local/bin/diffreviewer
 
 # Set working directory
 WORKDIR /app

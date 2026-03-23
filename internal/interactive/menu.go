@@ -1,12 +1,14 @@
 package interactive
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"strings"
 
+	"giverny/internal/ctrlsock"
 	"giverny/internal/git"
 	"giverny/internal/shell"
 )
@@ -91,70 +93,74 @@ func startShell() error {
 	return nil
 }
 
-// runDiffreviewer runs diffreviewer and if notes are found, asks Claude to fix them
+// runDiffreviewer starts diffreviewer as a server, notifies outie to open a
+// browser, and waits for diffreviewer to exit. If review notes are produced,
+// asks the agent to fix them.
 func runDiffreviewer(executeClaude func(prompt string, interactive bool) error) error {
 	fmt.Println("Starting diffreviewer...")
 
-	// Run diffreviewer and capture output
-	cmd := exec.Command("diffreviewer")
+	notesPath := "/tmp/diffreviewer-notes.md"
+
+	cmd := exec.Command("diffreviewer", "-notes", notesPath)
 	cmd.Dir = "/app"
-	output, err := cmd.CombinedOutput()
+	cmd.Stdin = os.Stdin
+
+	// Capture stderr to detect the startup message with the port.
+	stderrPipe, err := cmd.StderrPipe()
 	if err != nil {
+		return fmt.Errorf("failed to create stderr pipe: %w", err)
+	}
+	cmd.Stdout = os.Stdout
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start diffreviewer: %w", err)
+	}
+
+	// Read stderr line by line; forward to os.Stderr and watch for the
+	// startup message so we can notify outie.
+	scanner := bufio.NewScanner(stderrPipe)
+	notified := false
+	for scanner.Scan() {
+		line := scanner.Text()
+		fmt.Fprintln(os.Stderr, line)
+
+		if !notified && strings.Contains(line, "DiffReviewer starting on") {
+			// Extract the URL from: "DiffReviewer starting on http://localhost:PORT"
+			if idx := strings.Index(line, "http"); idx >= 0 {
+				url := strings.TrimSpace(line[idx:])
+				if addr := ctrlsock.ContainerAddr(); addr != "" {
+					if err := ctrlsock.Send(addr, "OPEN-DIFFR "+url); err != nil {
+						fmt.Fprintf(os.Stderr, "Warning: failed to notify outie to open browser: %v\n", err)
+					}
+				}
+			}
+			notified = true
+		}
+	}
+
+	if err := cmd.Wait(); err != nil {
 		return fmt.Errorf("diffreviewer exited with error: %w", err)
 	}
 
-	// Parse the notes from the output
-	// The output format has notes between the separator lines
-	notes := parseNotesFromOutput(string(output))
+	// Check if notes file was produced
+	notesData, err := os.ReadFile(notesPath)
+	if err != nil {
+		// No notes file means no review notes
+		fmt.Println("No review notes found.")
+		return nil
+	}
+	defer os.Remove(notesPath)
 
-	// If notes are empty, just return
-	if notes == "" {
+	notes := strings.TrimSpace(string(notesData))
+	if notes == "" || notes == "# Review Notes" {
 		fmt.Println("No review notes found.")
 		return nil
 	}
 
-	// Write notes to file
-	notesPath := "/tmp/diffreviewer-notes.md"
-	if err := os.WriteFile(notesPath, []byte(notes), 0644); err != nil {
-		return fmt.Errorf("failed to write notes file: %w", err)
-	}
-	defer os.Remove(notesPath) // Clean up notes file after Claude runs
-
 	fmt.Printf("Review notes written to %s\n", notesPath)
-	fmt.Println("Starting Claude to fix the issues...")
+	fmt.Println("Starting agent to fix the issues...")
 
-	// Start Claude with the notes
 	return executeClaude("Please fix the issues in @/tmp/diffreviewer-notes.md", true)
 }
 
-// parseNotesFromOutput extracts notes from diffreviewer output
-func parseNotesFromOutput(output string) string {
-	// Find the notes section between the separator lines
-	lines := strings.Split(output, "\n")
-	inNotes := false
-	var noteLines []string
 
-	for _, line := range lines {
-		if strings.Contains(line, "================================================================================") {
-			if inNotes {
-				// End of notes section
-				break
-			}
-			// Start of notes section
-			inNotes = true
-			continue
-		}
-		if inNotes {
-			noteLines = append(noteLines, line)
-		}
-	}
-
-	notes := strings.TrimSpace(strings.Join(noteLines, "\n"))
-
-	// Check if notes section only contains header
-	if notes == "# Review Notes" || notes == "" {
-		return ""
-	}
-
-	return notes
-}

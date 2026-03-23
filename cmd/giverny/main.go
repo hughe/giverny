@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"giverny"
+	"giverny/internal/ctrlsock"
 	"giverny/internal/docker"
 	"giverny/internal/innie"
 	"giverny/internal/outie"
@@ -39,6 +40,7 @@ type Config struct {
 	ExistingBranch  bool
 	AllowDirty      bool
 	UseAmp          bool
+	CtrlSend        string
 }
 
 var (
@@ -88,6 +90,15 @@ func main() {
 			if showVersion {
 				fmt.Println(getVersion())
 				return nil
+			}
+
+			// Handle --ctrl-send: send a message on the control socket and exit
+			if config.CtrlSend != "" {
+				addr := ctrlsock.ContainerAddr()
+				if addr == "" {
+					return fmt.Errorf("%s environment variable is not set", ctrlsock.EnvVar)
+				}
+				return ctrlsock.Send(addr, config.CtrlSend)
 			}
 
 			// Require TASK-ID if not showing version
@@ -155,8 +166,10 @@ func main() {
 	// Hidden flags (for internal use only)
 	rootCmd.Flags().BoolVar(&config.IsInnie, "innie", false, "Internal flag for running inside container")
 	rootCmd.Flags().IntVar(&config.GitServerPort, "git-server-port", 0, "Internal flag for git server port")
+	rootCmd.Flags().StringVar(&config.CtrlSend, "ctrl-send", "", "Send a message on the control socket and exit")
 	rootCmd.Flags().MarkHidden("innie")
 	rootCmd.Flags().MarkHidden("git-server-port")
+	rootCmd.Flags().MarkHidden("ctrl-send")
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
