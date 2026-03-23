@@ -93,17 +93,17 @@ Don't say "Perfect" all the time.  Try to be direct and professional.
 
 # IMPORTANT: Task Tracking
 
-This project uses **bd** (beads) for issue tracking.  **Do not** use
- markdown files or the todo list.  Run `bd quickstart` to learn how.
+This project uses **br** (beads) for issue tracking.  **Do not** use
+ markdown files or the todo list.
 
 ## Quick Reference
 
 ```bash
-bd ready              # Find available work
-bd show <id>          # View issue details
-bd update <id> --status in_progress  # Claim work
-bd close <id>         # Complete work
-bd sync               # Sync with git
+br ready              # Find available work
+br show <id>          # View issue details
+br update <id> --status in_progress  # Claim work
+br close <id>         # Complete work
+br sync               # Sync with git
 ```
 
 When you commit some changes.  Please add the IDs of the tasks that were closed to the commit message.  E.g., 

@@ -21,6 +21,7 @@ type Config struct {
 	ShowBuildOutput bool
 	ExistingBranch  bool
 	AllowDirty      bool
+	UseAmp          bool
 }
 
 // Run executes the Outie workflow
@@ -50,9 +51,15 @@ func RunWithDeps(config Config, git gitops.GitOps, docker dockerops.DockerOps) e
 		return fmt.Errorf("failed to change to project root: %w", err)
 	}
 
-	// Validate CLAUDE_CODE_OAUTH_TOKEN is set
-	if os.Getenv("CLAUDE_CODE_OAUTH_TOKEN") == "" {
-		return fmt.Errorf("CLAUDE_CODE_OAUTH_TOKEN environment variable is not set.\nPlease set it with: export CLAUDE_CODE_OAUTH_TOKEN=your-token")
+	// Validate agent token is set
+	if config.UseAmp {
+		if os.Getenv("AMP_API_KEY") == "" {
+			return fmt.Errorf("AMP_API_KEY environment variable is not set.\nPlease set it with: export AMP_API_KEY=your-key")
+		}
+	} else {
+		if os.Getenv("CLAUDE_CODE_OAUTH_TOKEN") == "" {
+			return fmt.Errorf("CLAUDE_CODE_OAUTH_TOKEN environment variable is not set.\nPlease set it with: export CLAUDE_CODE_OAUTH_TOKEN=your-token")
+		}
 	}
 
 	// Check for uncommitted changes before creating branch (unless --allow-dirty is set)
@@ -116,7 +123,7 @@ func RunWithDeps(config Config, git gitops.GitOps, docker dockerops.DockerOps) e
 	}
 
 	// Run the container with Innie
-	exitCode, err := docker.RunContainer(config.TaskID, config.Prompt, gitPort, config.DockerArgs, config.AgentArgs, config.Debug)
+	exitCode, err := docker.RunContainer(config.TaskID, config.Prompt, gitPort, config.DockerArgs, config.AgentArgs, config.Debug, config.UseAmp)
 
 	// Post-container cleanup
 	containerName := fmt.Sprintf("giverny-%s", config.TaskID)

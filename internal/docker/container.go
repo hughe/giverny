@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"giverny/internal/cmdutil"
@@ -12,17 +13,11 @@ import (
 
 // RunContainer starts the giverny-main container with Innie
 // Returns the exit code of the container
-func RunContainer(taskID, prompt string, gitPort int, dockerArgs, agentArgs string, debug bool) (int, error) {
-	// Get the OAuth token
-	token := os.Getenv("CLAUDE_CODE_OAUTH_TOKEN")
-	if token == "" {
-		return 0, fmt.Errorf("CLAUDE_CODE_OAUTH_TOKEN not set")
-	}
-
+func RunContainer(taskID, prompt string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error) {
 	// Generate a container name based on task ID
 	containerName := fmt.Sprintf("giverny-%s", taskID)
 
-	// Get home directory for mounting Claude config
+	// Get home directory for mounting config
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return 0, fmt.Errorf("failed to get home directory: %w", err)
@@ -33,9 +28,30 @@ func RunContainer(taskID, prompt string, gitPort int, dockerArgs, agentArgs stri
 		"run",
 		"-it",
 		"--name", containerName,
-		"--env", "CLAUDE_CODE_OAUTH_TOKEN",
-		"-v", fmt.Sprintf("%s/.claude:/root/.claude", homeDir),
-		"-v", fmt.Sprintf("%s/.claude.json:/root/.claude.json", homeDir),
+	}
+
+	if useAmp {
+		// Validate AMP_API_KEY
+		if os.Getenv("AMP_API_KEY") == "" {
+			return 0, fmt.Errorf("AMP_API_KEY not set")
+		}
+		args = append(args, "--env", "AMP_API_KEY")
+
+		// Mount Amp config directory
+		ampConfigDir := filepath.Join(homeDir, ".config", "amp")
+		if _, err := os.Stat(ampConfigDir); err == nil {
+			args = append(args, "-v", fmt.Sprintf("%s:/root/.config/amp", ampConfigDir))
+		}
+	} else {
+		// Validate CLAUDE_CODE_OAUTH_TOKEN
+		if os.Getenv("CLAUDE_CODE_OAUTH_TOKEN") == "" {
+			return 0, fmt.Errorf("CLAUDE_CODE_OAUTH_TOKEN not set")
+		}
+		args = append(args,
+			"--env", "CLAUDE_CODE_OAUTH_TOKEN",
+			"-v", fmt.Sprintf("%s/.claude:/root/.claude", homeDir),
+			"-v", fmt.Sprintf("%s/.claude.json:/root/.claude.json", homeDir),
+		)
 	}
 
 	// Add any additional docker args
@@ -50,6 +66,11 @@ func RunContainer(taskID, prompt string, gitPort int, dockerArgs, agentArgs stri
 
 	// Specify the command to run inside the container
 	args = append(args, "giverny", "--innie", fmt.Sprintf("--git-server-port=%d", gitPort))
+
+	// Add --amp flag if using Amp
+	if useAmp {
+		args = append(args, "--amp")
+	}
 
 	// Add debug flag if enabled
 	if debug {

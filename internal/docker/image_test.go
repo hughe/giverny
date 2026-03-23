@@ -48,14 +48,14 @@ func TestGenerateDockerfile(t *testing.T) {
 		expectedStrings := []string{
 			"FROM golang:alpine AS builder",
 			"FROM golang:alpine AS diffreviewer-builder",
-			"FROM golang:alpine AS beads-builder",
+			"FROM rust:alpine AS beads-builder",
 			"apk add --no-cache git curl nodejs npm make",
 			"RUN make",
-			"go install github.com/steveyegge/beads/cmd/bd@latest",
+			"cargo install --git https://github.com/Dicklesworthstone/beads_rust.git",
 			"FROM alpine:latest",
 			"COPY --from=builder /output/giverny /output/giverny",
 			"COPY --from=diffreviewer-builder /output/diffreviewer /output/diffreviewer",
-			"COPY --from=beads-builder /output/bd /output/bd",
+			"COPY --from=beads-builder /output/br /output/br",
 			"v0.1.1",
 		}
 
@@ -99,8 +99,9 @@ func TestGenerateDockerfile(t *testing.T) {
 			"FROM ubuntu:22.04",
 			"COPY --from=giverny-deps:latest /output/giverny",
 			"COPY --from=giverny-deps:latest /output/diffreviewer",
-			"COPY --from=giverny-deps:latest /output/bd",
+			"COPY --from=giverny-deps:latest /output/br",
 			"npm install -g @anthropic-ai/claude-code",
+			"npm install -g @sourcegraph/amp",
 		}
 
 		for _, expected := range expectedStrings {
@@ -185,15 +186,15 @@ func TestBuildImage_IntegrationTest(t *testing.T) {
 		t.Errorf("diffreviewer not installed in expected location, got: %s", output)
 	}
 
-	// Verify beads wrapper exists in the image
-	cmd = exec.Command("docker", "run", "--rm", "giverny-main:latest", "which", "bd")
+	// Verify br binary exists in the image
+	cmd = exec.Command("docker", "run", "--rm", "giverny-main:latest", "which", "br")
 	output, err = cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("bd not found in image: %v, output: %s", err, output)
+		t.Fatalf("br not found in image: %v, output: %s", err, output)
 	}
 
-	if !strings.Contains(string(output), "/usr/local/sbin/bd") {
-		t.Errorf("bd wrapper not installed in expected location, got: %s", output)
+	if !strings.Contains(string(output), "/usr/local/bin/br") {
+		t.Errorf("br not installed in expected location, got: %s", output)
 	}
 
 	// Clean up - remove the test images

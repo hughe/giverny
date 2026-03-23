@@ -38,6 +38,7 @@ type Config struct {
 	ShowBuildOutput bool
 	ExistingBranch  bool
 	AllowDirty      bool
+	UseAmp          bool
 }
 
 var (
@@ -120,6 +121,7 @@ func main() {
 					GitServerPort: config.GitServerPort,
 					AgentArgs:     config.AgentArgs,
 					Debug:         config.Debug,
+					UseAmp:        config.UseAmp,
 				}
 				return innie.Run(innieConfig)
 			}
@@ -133,6 +135,7 @@ func main() {
 				ShowBuildOutput: config.ShowBuildOutput,
 				ExistingBranch:  config.ExistingBranch,
 				AllowDirty:      config.AllowDirty,
+				UseAmp:          config.UseAmp,
 			}
 			return outie.Run(outieConfig)
 		},
@@ -147,6 +150,7 @@ func main() {
 	rootCmd.Flags().BoolVar(&config.ShowBuildOutput, "show-build-output", false, "Show docker build output")
 	rootCmd.Flags().BoolVar(&config.ExistingBranch, "existing-branch", false, "Use existing branch instead of creating a new one")
 	rootCmd.Flags().BoolVar(&config.AllowDirty, "allow-dirty", false, "Allow creating branch even if working directory has uncommitted changes")
+	rootCmd.Flags().BoolVarP(&config.UseAmp, "amp", "a", false, "Use Amp instead of Claude Code as the agent")
 
 	// Hidden flags (for internal use only)
 	rootCmd.Flags().BoolVar(&config.IsInnie, "innie", false, "Internal flag for running inside container")

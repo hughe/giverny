@@ -18,6 +18,7 @@ type Config struct {
 	GitServerPort int
 	AgentArgs     string
 	Debug         bool
+	UseAmp        bool
 }
 
 // Run executes the Innie workflow
@@ -31,6 +32,9 @@ func RunWithDeps(config Config, git gitops.GitOps) error {
 		fmt.Printf("Running Innie for task: %s\n", config.TaskID)
 		fmt.Printf("Prompt: %s\n", config.Prompt)
 		fmt.Printf("Git server port: %d\n", config.GitServerPort)
+		if config.UseAmp {
+			fmt.Printf("Agent: Amp\n")
+		}
 	}
 
 	// Clone the repository from Outie's git server
@@ -72,17 +76,16 @@ func RunWithDeps(config Config, git gitops.GitOps) error {
 		fmt.Fprintf(os.Stderr, "Warning: beads initialization failed: %v\n", err)
 	}
 
-	// Execute Claude Code with the prompt
-	if err := executeClaude(config.Prompt, config.AgentArgs, true); err != nil {
-		return fmt.Errorf("failed to execute Claude: %w", err)
+	// Execute agent with the prompt
+	if err := executeAgent(config.Prompt, config.AgentArgs, config.UseAmp, true); err != nil {
+		return fmt.Errorf("failed to execute agent: %w", err)
 	}
 
-	// Post-Claude menu loop
-	// Create a wrapper function that captures agentArgs
-	executeClaudeWrapper := func(prompt string, isInteractive bool) error {
-		return executeClaude(prompt, config.AgentArgs, isInteractive)
+	// Post-agent menu loop
+	executeAgentWrapper := func(prompt string, isInteractive bool) error {
+		return executeAgent(prompt, config.AgentArgs, config.UseAmp, isInteractive)
 	}
-	if err := interactive.PostClaudeMenu(executeClaudeWrapper, nil); err != nil {
+	if err := interactive.PostClaudeMenu(executeAgentWrapper, nil); err != nil {
 		return fmt.Errorf("menu error: %w", err)
 	}
 
@@ -92,6 +95,14 @@ func RunWithDeps(config Config, git gitops.GitOps) error {
 	}
 
 	return nil
+}
+
+// executeAgent runs the selected agent (Claude Code or Amp) with the given prompt in /app
+func executeAgent(prompt, agentArgs string, useAmp, interactive bool) error {
+	if useAmp {
+		return executeAmp(prompt, agentArgs, interactive)
+	}
+	return executeClaude(prompt, agentArgs, interactive)
 }
 
 // executeClaude runs Claude Code with the given prompt in /app
@@ -127,5 +138,41 @@ func executeClaude(prompt, agentArgs string, interactive bool) error {
 	}
 
 	fmt.Printf("Claude completed successfully\n")
+	return nil
+}
+
+// executeAmp runs Amp with the given prompt in /app
+func executeAmp(prompt, agentArgs string, interactive bool) error {
+	if interactive {
+		fmt.Printf("Executing Amp...\n")
+	} else {
+		fmt.Printf("Executing Amp in non-interactive mode...\n")
+	}
+
+	args := []string{"--dangerously-allow-all"}
+	if !interactive {
+		args = append(args, "-x")
+	}
+
+	// Parse and add agent args if provided
+	if agentArgs != "" {
+		additionalArgs := strings.Fields(agentArgs)
+		args = append(args, additionalArgs...)
+	}
+
+	args = append(args, prompt)
+
+	cmd := exec.Command("amp", args...)
+	cmd.Dir = "/app"
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	cmd.Env = append(os.Environ(), "IS_SANDBOX=1")
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("Amp exited with error: %w", err)
+	}
+
+	fmt.Printf("Amp completed successfully\n")
 	return nil
 }

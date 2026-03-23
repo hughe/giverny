@@ -17,8 +17,11 @@ var EmbeddedSource embed.FS
 // DiffreviewerVersion specifies the version of diffreviewer to install
 const DiffreviewerVersion = "v0.2.1"
 
+// BeadsRustVersion specifies the version of beads_rust to install
+const BeadsRustVersion = "v0.1.14"
+
 const dockerfileDepsTemplate = `# Multi-stage build for Giverny dependencies
-# This builds the giverny binary, diffreviewer, and beads
+# This builds the giverny binary, diffreviewer, and beads_rust
 
 # Stage 1: Build giverny binary
 FROM golang:alpine AS builder
@@ -61,16 +64,19 @@ RUN make && \
 # Verify the binary was created
 RUN test -f /output/diffreviewer
 
-# Stage 3: Build beads
-FROM golang:alpine AS beads-builder
+# Stage 3: Build beads_rust (br)
+FROM rust:alpine AS beads-builder
 
-# Install beads
-RUN go install github.com/steveyegge/beads/cmd/bd@latest && \
+# Install build dependencies
+RUN apk add --no-cache git musl-dev
+
+# Install beads_rust
+RUN cargo install --git https://github.com/Dicklesworthstone/beads_rust.git --tag {{.BeadsRustVersion}} && \
     mkdir -p /output && \
-    ln $(go env GOPATH)/bin/bd /output/bd
+    cp $(which br) /output/br
 
 # Verify the binary was created
-RUN test -f /output/bd
+RUN test -f /output/br
 
 # Stage 4: Collect all binaries in a single stage
 FROM alpine:latest
@@ -78,12 +84,12 @@ FROM alpine:latest
 # Copy all binaries
 COPY --from=builder /output/giverny /output/giverny
 COPY --from=diffreviewer-builder /output/diffreviewer /output/diffreviewer
-COPY --from=beads-builder /output/bd /output/bd
+COPY --from=beads-builder /output/br /output/br
 
 # Verify all binaries are present
 RUN test -f /output/giverny && \
     test -f /output/diffreviewer && \
-    test -f /output/bd
+    test -f /output/br
 `
 
 const dockerfileMainTemplate = `# Final Giverny image with dependencies from giverny-deps
@@ -104,33 +110,13 @@ RUN command -v node >/dev/null 2>&1 || \
 # Install Claude Code
 RUN npm install -g @anthropic-ai/claude-code
 
+# Install Amp
+RUN npm install -g @sourcegraph/amp
+
 # Copy binaries from giverny-deps image
 COPY --from=giverny-deps:latest /output/giverny /usr/local/bin/giverny
 COPY --from=giverny-deps:latest /output/diffreviewer /usr/local/bin/diffreviewer
-COPY --from=giverny-deps:latest /output/bd /usr/local/bin/bd
-
-# Create bd wrapper script in /usr/local/sbin (earlier in PATH)
-COPY <<'EOF' /usr/local/sbin/bd
-#!/bin/bash
-# Wrapper script for bd that automatically adds --sandbox and --no-db flag
-# This ensures bd runs in sandbox mode by default in the Giverny environment
-
-# Check if 'sync' command or --db flag is present in arguments
-for arg in "$@"; do
-    if [[ "$arg" == "sync" ]]; then
-        echo "Don't sync in containers" >&2
-        exit 1
-    fi
-    if [[ "$arg" == "--db" ]]; then
-        echo "Error: --db flag is not allowed in this environment" >&2
-        exit 1
-    fi
-done
-
-# Call the real bd with --sandbox --no-db prepended to arguments
-exec /usr/local/bin/bd --sandbox --no-db "$@"
-EOF
-RUN chmod +x /usr/local/sbin/bd
+COPY --from=giverny-deps:latest /output/br /usr/local/bin/br
 
 # Set working directory
 WORKDIR /app
@@ -139,10 +125,11 @@ WORKDIR /app
 type DockerfileData struct {
 	BaseImage           string
 	DiffreviewerVersion string
+	BeadsRustVersion    string
 }
 
 // BuildImage builds the giverny Docker images using two separate Dockerfiles.
-// First it builds giverny-deps with all the dependencies (giverny binary, diffreviewer, beads).
+// First it builds giverny-deps with all the dependencies (giverny binary, diffreviewer, beads_rust).
 // Then it builds giverny-main which uses the deps image and adds the base image components.
 // It creates a temporary directory, extracts embedded source code,
 // generates both Dockerfiles, builds both images, optionally streams output
@@ -170,6 +157,7 @@ func BuildImage(baseImage string, showOutput bool, debug bool) error {
 	depsData := DockerfileData{
 		BaseImage:           baseImage,
 		DiffreviewerVersion: DiffreviewerVersion,
+		BeadsRustVersion:    BeadsRustVersion,
 	}
 	if err := generateDockerfile(dockerfileDepsPath, dockerfileDepsTemplate, depsData); err != nil {
 		return fmt.Errorf("failed to generate Dockerfile.deps: %w", err)
@@ -206,6 +194,7 @@ func BuildImage(baseImage string, showOutput bool, debug bool) error {
 	mainData := DockerfileData{
 		BaseImage:           baseImage,
 		DiffreviewerVersion: DiffreviewerVersion,
+		BeadsRustVersion:    BeadsRustVersion,
 	}
 	if err := generateDockerfile(dockerfileMainPath, dockerfileMainTemplate, mainData); err != nil {
 		return fmt.Errorf("failed to generate Dockerfile.main: %w", err)
