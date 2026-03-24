@@ -13,9 +13,14 @@ import (
 
 // RunContainer starts the giverny-main container with Innie
 // Returns the exit code of the container
-func RunContainer(taskID, prompt string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error) {
-	// Generate a container name based on task ID
-	containerName := fmt.Sprintf("giverny-%s", taskID)
+func RunContainer(taskID, slug, prompt string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error) {
+	// Generate a container name based on task ID and slug
+	var containerName string
+	if slug != "" {
+		containerName = fmt.Sprintf("giverny-%s-%s", taskID, slug)
+	} else {
+		containerName = fmt.Sprintf("giverny-%s", taskID)
+	}
 
 	// Get home directory for mounting config
 	homeDir, err := os.UserHomeDir()
@@ -82,7 +87,12 @@ func RunContainer(taskID, prompt string, gitPort int, dockerArgs, agentArgs stri
 		args = append(args, fmt.Sprintf("--agent-args=%s", agentArgs))
 	}
 
-	args = append(args, taskID, prompt)
+	// Add positional arguments: taskID, [slug], prompt
+	if slug != "" {
+		args = append(args, taskID, slug, prompt)
+	} else {
+		args = append(args, taskID, prompt)
+	}
 
 	cmd := exec.Command("docker", args...)
 	cmd.Stdout = os.Stdout

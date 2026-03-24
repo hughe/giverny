@@ -13,6 +13,7 @@ import (
 // Config holds the configuration for the Innie
 type Config struct {
 	TaskID        string
+	Slug          string
 	Prompt        string
 	GitServerPort int
 	AgentArgs     string
@@ -59,7 +60,12 @@ func RunWithDeps(config Config, git gitops.GitOps) error {
 	}
 
 	// Set up workspace in /app
-	branchName := fmt.Sprintf("giverny/%s", config.TaskID)
+	var branchName string
+	if config.Slug != "" {
+		branchName = fmt.Sprintf("giverny/%s-%s", config.TaskID, config.Slug)
+	} else {
+		branchName = fmt.Sprintf("giverny/%s", config.TaskID)
+	}
 	if err := git.SetupWorkspace(branchName, config.Debug); err != nil {
 		return fmt.Errorf("failed to setup workspace: %w", err)
 	}

@@ -29,6 +29,7 @@ func init() {
 
 type Config struct {
 	TaskID          string
+	Slug            string
 	Prompt          string
 	BaseImage       string
 	DockerArgs      string
@@ -81,10 +82,10 @@ func getVersion() string {
 
 func main() {
 	rootCmd := &cobra.Command{
-		Use:   "giverny [OPTIONS] TASK-ID [PROMPT]",
+		Use:   "giverny [OPTIONS] TASK-ID [SLUG] [PROMPT]",
 		Short: "Containerized system for running Claude Code safely",
 		Long:  "Giverny creates isolated Docker environments where Claude Code can work on tasks without affecting the host system.",
-		Args:  cobra.RangeArgs(0, 2),
+		Args:  cobra.RangeArgs(0, 3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Handle --version flag
 			if showVersion {
@@ -112,11 +113,20 @@ func main() {
 				return fmt.Errorf("invalid TASK-ID: %w", err)
 			}
 
-			// Set prompt - default or from argument
-			if len(args) >= 2 {
-				config.Prompt = args[1]
-			} else {
+			// Set slug and prompt based on number of arguments
+			switch len(args) {
+			case 1:
+				// Only TASK-ID provided
+				config.Slug = ""
 				config.Prompt = fmt.Sprintf("Please work on %s.", config.TaskID)
+			case 2:
+				// TASK-ID and SLUG provided
+				config.Slug = sanitizeSlug(args[1])
+				config.Prompt = fmt.Sprintf("Please work on %s.", config.TaskID)
+			case 3:
+				// TASK-ID, SLUG, and PROMPT provided
+				config.Slug = sanitizeSlug(args[1])
+				config.Prompt = args[2]
 			}
 
 			// Validate innie-specific requirements
@@ -128,6 +138,7 @@ func main() {
 			if config.IsInnie {
 				innieConfig := innie.Config{
 					TaskID:        config.TaskID,
+					Slug:          config.Slug,
 					Prompt:        config.Prompt,
 					GitServerPort: config.GitServerPort,
 					AgentArgs:     config.AgentArgs,
@@ -138,6 +149,7 @@ func main() {
 			}
 			outieConfig := outie.Config{
 				TaskID:          config.TaskID,
+				Slug:            config.Slug,
 				Prompt:          config.Prompt,
 				BaseImage:       config.BaseImage,
 				DockerArgs:      config.DockerArgs,
@@ -174,6 +186,24 @@ func main() {
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
+}
+
+// sanitizeSlug replaces any characters that are not safe for git branch names
+// or docker container names with hyphens. Also collapses multiple consecutive
+// hyphens into a single hyphen and trims leading/trailing hyphens.
+func sanitizeSlug(slug string) string {
+	// Replace any character that's not alphanumeric, hyphen, or underscore with a hyphen
+	invalidCharsPattern := regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
+	result := invalidCharsPattern.ReplaceAllString(slug, "-")
+
+	// Collapse multiple consecutive hyphens into one
+	multipleHyphens := regexp.MustCompile(`-+`)
+	result = multipleHyphens.ReplaceAllString(result, "-")
+
+	// Trim leading and trailing hyphens
+	result = strings.Trim(result, "-")
+
+	return result
 }
 
 // validateTaskID ensures TASK-ID contains only characters valid in git branch names.

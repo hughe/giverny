@@ -97,10 +97,10 @@ func createTestCommand(validateOnly bool) *cobra.Command {
 	var testConfig Config
 
 	cmd := &cobra.Command{
-		Use:   "giverny [OPTIONS] TASK-ID [PROMPT]",
+		Use:   "giverny [OPTIONS] TASK-ID [SLUG] [PROMPT]",
 		Short: "Containerized system for running Claude Code safely",
 		Long:  "Giverny creates isolated Docker environments where Claude Code can work on tasks without affecting the host system.",
-		Args:  cobra.RangeArgs(1, 2),
+		Args:  cobra.RangeArgs(1, 3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			testConfig.TaskID = args[0]
 
@@ -109,11 +109,20 @@ func createTestCommand(validateOnly bool) *cobra.Command {
 				return err
 			}
 
-			// Set prompt - default or from argument
-			if len(args) >= 2 {
-				testConfig.Prompt = args[1]
-			} else {
+			// Set slug and prompt based on number of arguments
+			switch len(args) {
+			case 1:
+				// Only TASK-ID provided
+				testConfig.Slug = ""
 				testConfig.Prompt = "Please work on " + testConfig.TaskID + "."
+			case 2:
+				// TASK-ID and SLUG provided
+				testConfig.Slug = sanitizeSlug(args[1])
+				testConfig.Prompt = "Please work on " + testConfig.TaskID + "."
+			case 3:
+				// TASK-ID, SLUG, and PROMPT provided
+				testConfig.Slug = sanitizeSlug(args[1])
+				testConfig.Prompt = args[2]
 			}
 
 			// Validate innie-specific requirements
@@ -164,9 +173,9 @@ func TestParseArgs_DefaultPrompt(t *testing.T) {
 	}
 }
 
-func TestParseArgs_CustomPrompt(t *testing.T) {
+func TestParseArgs_WithSlug(t *testing.T) {
 	cmd := createTestCommand(true)
-	cmd.SetArgs([]string{"task-456", "Custom prompt here"})
+	cmd.SetArgs([]string{"task-456", "add feature"})
 
 	err := cmd.Execute()
 	if err != nil {
@@ -175,6 +184,35 @@ func TestParseArgs_CustomPrompt(t *testing.T) {
 
 	if config.TaskID != "task-456" {
 		t.Errorf("expected TaskID 'task-456', got '%s'", config.TaskID)
+	}
+
+	// Slug should be sanitized: "add feature" -> "add-feature"
+	if config.Slug != "add-feature" {
+		t.Errorf("expected Slug 'add-feature', got '%s'", config.Slug)
+	}
+
+	// Default prompt should be generated
+	expectedPrompt := "Please work on task-456."
+	if config.Prompt != expectedPrompt {
+		t.Errorf("expected Prompt '%s', got '%s'", expectedPrompt, config.Prompt)
+	}
+}
+
+func TestParseArgs_WithSlugAndPrompt(t *testing.T) {
+	cmd := createTestCommand(true)
+	cmd.SetArgs([]string{"task-789", "fix-bug", "Custom prompt here"})
+
+	err := cmd.Execute()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if config.TaskID != "task-789" {
+		t.Errorf("expected TaskID 'task-789', got '%s'", config.TaskID)
+	}
+
+	if config.Slug != "fix-bug" {
+		t.Errorf("expected Slug 'fix-bug', got '%s'", config.Slug)
 	}
 
 	if config.Prompt != "Custom prompt here" {
@@ -353,6 +391,55 @@ func TestIsWorkspaceDirty_DirtyWorkspace(t *testing.T) {
 
 	if !dirty {
 		t.Error("expected workspace to be dirty, but it was clean")
+	}
+}
+
+func TestSanitizeSlug(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		// Simple cases
+		{name: "simple word", input: "hello", expected: "hello"},
+		{name: "with hyphen", input: "hello-world", expected: "hello-world"},
+		{name: "with underscore", input: "hello_world", expected: "hello_world"},
+		{name: "with numbers", input: "task123", expected: "task123"},
+
+		// Spaces
+		{name: "spaces to hyphens", input: "hello world", expected: "hello-world"},
+		{name: "multiple spaces", input: "hello   world", expected: "hello-world"},
+
+		// Special characters
+		{name: "special chars", input: "add@feature!", expected: "add-feature"},
+		{name: "mixed special", input: "fix: bug #123", expected: "fix-bug-123"},
+		{name: "slashes", input: "path/to/file", expected: "path-to-file"},
+
+		// Leading/trailing
+		{name: "leading space", input: " hello", expected: "hello"},
+		{name: "trailing space", input: "hello ", expected: "hello"},
+		{name: "leading special", input: "!hello", expected: "hello"},
+		{name: "trailing special", input: "hello!", expected: "hello"},
+
+		// Multiple consecutive hyphens
+		{name: "collapse hyphens", input: "hello---world", expected: "hello-world"},
+		{name: "special chars create hyphens", input: "hello!!!world", expected: "hello-world"},
+
+		// Unicode
+		{name: "unicode chars", input: "héllo wörld", expected: "h-llo-w-rld"},
+
+		// Empty result
+		{name: "all special chars", input: "!@#$%", expected: ""},
+		{name: "only spaces", input: "   ", expected: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := sanitizeSlug(tt.input)
+			if result != tt.expected {
+				t.Errorf("sanitizeSlug(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
 	}
 }
 

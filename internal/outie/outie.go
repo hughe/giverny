@@ -14,6 +14,7 @@ import (
 // Config holds the configuration for the Outie
 type Config struct {
 	TaskID          string
+	Slug            string
 	Prompt          string
 	BaseImage       string
 	DockerArgs      string
@@ -75,7 +76,12 @@ func RunWithDeps(config Config, git gitops.GitOps, docker dockerops.DockerOps) e
 	}
 
 	// Create or validate git branch for this task
-	branchName := fmt.Sprintf("giverny/%s", config.TaskID)
+	var branchName string
+	if config.Slug != "" {
+		branchName = fmt.Sprintf("giverny/%s-%s", config.TaskID, config.Slug)
+	} else {
+		branchName = fmt.Sprintf("giverny/%s", config.TaskID)
+	}
 	if config.ExistingBranch {
 		// Validate that the branch exists
 		exists, err := git.BranchExists(branchName)
@@ -115,7 +121,12 @@ func RunWithDeps(config Config, git gitops.GitOps, docker dockerops.DockerOps) e
 	}
 
 	// Start control server for innie-to-outie communication
-	containerName := fmt.Sprintf("giverny-%s", config.TaskID)
+	var containerName string
+	if config.Slug != "" {
+		containerName = fmt.Sprintf("giverny-%s-%s", config.TaskID, config.Slug)
+	} else {
+		containerName = fmt.Sprintf("giverny-%s", config.TaskID)
+	}
 	ctrlListener, err := ctrlsock.Listen(containerName, config.Debug)
 	if err != nil {
 		return fmt.Errorf("failed to start control server: %w", err)
@@ -145,7 +156,7 @@ func RunWithDeps(config Config, git gitops.GitOps, docker dockerops.DockerOps) e
 	}
 
 	// Run the container with Innie
-	exitCode, err := docker.RunContainer(config.TaskID, config.Prompt, gitPort, config.DockerArgs, config.AgentArgs, config.Debug, config.UseAmp)
+	exitCode, err := docker.RunContainer(config.TaskID, config.Slug, config.Prompt, gitPort, config.DockerArgs, config.AgentArgs, config.Debug, config.UseAmp)
 
 	// Post-container cleanup
 
