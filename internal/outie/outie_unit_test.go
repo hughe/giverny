@@ -156,7 +156,7 @@ func TestRunWithDeps_ChecksDirtyWorkspace(t *testing.T) {
 			imageBuilt = true
 			return nil
 		}
-		mockDocker.RunContainerFunc = func(taskID, prompt string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error) {
+		mockDocker.RunContainerFunc = func(taskID, slug, prompt string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error) {
 			containerRan = true
 			return 0, nil // Success
 		}
@@ -216,7 +216,7 @@ func TestRunWithDeps_ChecksDirtyWorkspace(t *testing.T) {
 		mockDocker.BuildImageFunc = func(baseImage string, showOutput bool, debug bool) error {
 			return nil
 		}
-		mockDocker.RunContainerFunc = func(taskID, prompt string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error) {
+		mockDocker.RunContainerFunc = func(taskID, slug, prompt string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error) {
 			return 0, nil
 		}
 		mockDocker.RemoveContainerFunc = func(containerName string) error {
@@ -378,7 +378,7 @@ func TestRunWithDeps_HandlesDockerErrors(t *testing.T) {
 		mockDocker.BuildImageFunc = func(baseImage string, showOutput bool, debug bool) error {
 			return nil
 		}
-		mockDocker.RunContainerFunc = func(taskID, prompt string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error) {
+		mockDocker.RunContainerFunc = func(taskID, slug, prompt string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error) {
 			return 1, nil // Non-zero exit code
 		}
 
@@ -458,7 +458,7 @@ func TestRunWithDeps_SuccessfulFlow(t *testing.T) {
 		}
 		return nil
 	}
-	mockDocker.RunContainerFunc = func(taskID, prompt string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error) {
+	mockDocker.RunContainerFunc = func(taskID, slug, prompt string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error) {
 		callSequence = append(callSequence, "RunContainer")
 		if taskID != "test-task" {
 			return 1, fmt.Errorf("unexpected task ID: %s", taskID)

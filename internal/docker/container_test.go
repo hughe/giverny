@@ -16,7 +16,7 @@ func TestRunContainer_RequiresClaudeToken(t *testing.T) {
 	}()
 
 	// Should fail without token (useAmp=false)
-	_, err := RunContainer("test-task", "test prompt", 9999, "", "", false, false)
+	_, err := RunContainer("test-task", "", "test prompt", 9999, "", "", false, false)
 	if err == nil {
 		t.Error("expected error when CLAUDE_CODE_OAUTH_TOKEN is not set")
 	}
@@ -36,7 +36,7 @@ func TestRunContainer_RequiresAmpToken(t *testing.T) {
 	}()
 
 	// Should fail without token (useAmp=true)
-	_, err := RunContainer("test-task", "test prompt", 9999, "", "", false, true)
+	_, err := RunContainer("test-task", "", "test prompt", 9999, "", "", false, true)
 	if err == nil {
 		t.Error("expected error when AMP_API_KEY is not set")
 	}
