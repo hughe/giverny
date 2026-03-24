@@ -1,4 +1,4 @@
-.PHONY: all build clean test test-binary integration-test run install image
+.PHONY: all build clean test test-binary integration-test run install image dogfood
 
 all: build
 
@@ -79,7 +79,22 @@ lint:
 
 image:
 	@echo "Building Docker image for Giverny to work on Giverny ..."
-	cd docker && docker build -t giverny-builder . 
+	cd docker && docker build -t giverny-builder .
+
+# Run giverny on the giverny codebase (dogfooding)
+# Usage: make dogfood TASK=task-id SLUG=optional-slug PROMPT="optional prompt"
+dogfood: image build
+	@if [ -z "$(TASK)" ]; then \
+		echo "Error: TASK is required. Usage: make dogfood TASK=task-id [SLUG=slug] [PROMPT=\"prompt\"]"; \
+		exit 1; \
+	fi
+	@if [ -n "$(PROMPT)" ] && [ -n "$(SLUG)" ]; then \
+		./bin/giverny --base-image giverny-builder "$(TASK)" "$(SLUG)" "$(PROMPT)"; \
+	elif [ -n "$(SLUG)" ]; then \
+		./bin/giverny --base-image giverny-builder "$(TASK)" "$(SLUG)"; \
+	else \
+		./bin/giverny --base-image giverny-builder "$(TASK)"; \
+	fi
 
 # Show help
 help:
@@ -92,4 +107,9 @@ help:
 	@echo "  install          - Install to GOPATH/bin"
 	@echo "  fmt              - Format code"
 	@echo "  lint             - Run linter"
+	@echo "  image            - Build Docker image for giverny development"
+	@echo "  dogfood          - Run giverny on giverny (TASK=id [SLUG=slug] [PROMPT=prompt])"
 	@echo "  help             - Show this help message"
+	@echo ""
+	@echo "Scripts:"
+	@echo "  ./scripts/giverny-on-giverny.sh TASK-ID [SLUG] [PROMPT]"
