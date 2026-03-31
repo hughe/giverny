@@ -111,7 +111,7 @@ RUN command -v node >/dev/null 2>&1 || \
 RUN npm install -g @anthropic-ai/claude-code
 
 # Install Amp
-RUN npm install -g @sourcegraph/amp
+RUN npm install -g @sourcegraph/amp@latest
 
 # Copy binaries from giverny-deps image
 COPY --from=giverny-deps:latest /output/giverny /usr/local/bin/giverny
