@@ -15,7 +15,7 @@ import (
 var EmbeddedSource embed.FS
 
 // DiffreviewerVersion specifies the version of diffreviewer to install
-const DiffreviewerVersion = "v0.2.1"
+const DiffreviewerVersion = "v0.2.3"
 
 // BeadsRustVersion specifies the version of beads_rust to install
 const BeadsRustVersion = "v0.1.14"
