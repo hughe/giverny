@@ -6,7 +6,7 @@ import "giverny/internal/docker"
 // This interface allows for mocking Docker operations in tests.
 type DockerOps interface {
 	// BuildImage builds the giverny Docker images (deps and main)
-	BuildImage(baseImage string, showOutput bool, debug bool) error
+	BuildImage(baseImage string, showOutput bool, forceRebuild bool, debug bool) error
 
 	// RunContainer runs the giverny container and returns the exit code
 	RunContainer(taskID, slug, prompt string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error)
@@ -24,8 +24,8 @@ func NewRealDockerOps() *RealDockerOps {
 }
 
 // BuildImage builds the giverny Docker images
-func (d *RealDockerOps) BuildImage(baseImage string, showOutput bool, debug bool) error {
-	return docker.BuildImage(baseImage, showOutput, debug)
+func (d *RealDockerOps) BuildImage(baseImage string, showOutput bool, forceRebuild bool, debug bool) error {
+	return docker.BuildImage(baseImage, showOutput, forceRebuild, debug)
 }
 
 // RunContainer runs the giverny container

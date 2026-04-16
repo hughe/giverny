@@ -3,7 +3,7 @@ package dockerops
 // MockDockerOps is a mock implementation of DockerOps for testing
 type MockDockerOps struct {
 	// Function stubs that can be set in tests
-	BuildImageFunc      func(baseImage string, showOutput bool, debug bool) error
+	BuildImageFunc      func(baseImage string, showOutput bool, forceRebuild bool, debug bool) error
 	RunContainerFunc    func(taskID, slug, prompt string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error)
 	RemoveContainerFunc func(containerName string) error
 }
@@ -11,7 +11,7 @@ type MockDockerOps struct {
 // NewMockDockerOps creates a new MockDockerOps with default no-op implementations
 func NewMockDockerOps() *MockDockerOps {
 	return &MockDockerOps{
-		BuildImageFunc: func(baseImage string, showOutput bool, debug bool) error {
+		BuildImageFunc: func(baseImage string, showOutput bool, forceRebuild bool, debug bool) error {
 			return nil
 		},
 		RunContainerFunc: func(taskID, slug, prompt string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error) {
@@ -24,8 +24,8 @@ func NewMockDockerOps() *MockDockerOps {
 }
 
 // BuildImage calls the mock function
-func (m *MockDockerOps) BuildImage(baseImage string, showOutput bool, debug bool) error {
-	return m.BuildImageFunc(baseImage, showOutput, debug)
+func (m *MockDockerOps) BuildImage(baseImage string, showOutput bool, forceRebuild bool, debug bool) error {
+	return m.BuildImageFunc(baseImage, showOutput, forceRebuild, debug)
 }
 
 // RunContainer calls the mock function

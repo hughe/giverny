@@ -41,6 +41,7 @@ type Config struct {
 	ExistingBranch  bool
 	AllowDirty      bool
 	UseAmp          bool
+	ForceRebuild    bool
 	CtrlSend        string
 }
 
@@ -150,6 +151,7 @@ func main() {
 				AgentArgs:       config.AgentArgs,
 				Debug:           config.Debug,
 				ShowBuildOutput: config.ShowBuildOutput,
+				ForceRebuild:    config.ForceRebuild,
 				ExistingBranch:  config.ExistingBranch,
 				AllowDirty:      config.AllowDirty,
 				UseAmp:          config.UseAmp,
@@ -167,6 +169,7 @@ func main() {
 	rootCmd.Flags().StringVar(&config.AgentArgs, "agent-args", "", "Additional arguments to pass to the agent (claude code)")
 	rootCmd.Flags().BoolVar(&config.Debug, "debug", false, "Enable debug output")
 	rootCmd.Flags().BoolVar(&config.ShowBuildOutput, "show-build-output", false, "Show docker build output")
+	rootCmd.Flags().BoolVar(&config.ForceRebuild, "force-rebuild", false, "Force rebuild of Docker image even if recent")
 	rootCmd.Flags().BoolVar(&config.ExistingBranch, "existing-branch", false, "Use existing branch instead of creating a new one")
 	rootCmd.Flags().BoolVar(&config.AllowDirty, "allow-dirty", false, "Allow creating branch even if working directory has uncommitted changes")
 	rootCmd.Flags().BoolVarP(&config.UseAmp, "amp", "a", false, "Use Amp instead of Claude Code as the agent")

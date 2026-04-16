@@ -2,12 +2,14 @@ package docker
 
 import (
 	"embed"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"text/template"
+	"time"
 )
 
 // EmbeddedSource holds the embedded source code for building the image.
@@ -19,6 +21,9 @@ const DiffreviewerVersion = "v0.2.3"
 
 // BeadsRustVersion specifies the version of beads_rust to install
 const BeadsRustVersion = "v0.1.14"
+
+// ImageMaxAge is the maximum age of a Docker image before it should be rebuilt
+const ImageMaxAge = 24 * time.Hour
 
 const dockerfileDepsTemplate = `# Multi-stage build for Giverny dependencies
 # This builds the giverny binary, diffreviewer, and beads_rust
@@ -95,20 +100,32 @@ RUN test -f /output/giverny && \
 const dockerfileMainTemplate = `# Final Giverny image with dependencies from giverny-deps
 FROM {{.BaseImage}}
 
-# Install git if not present
+# Install git and curl if not present
 RUN command -v git >/dev/null 2>&1 || \
     (apt-get update && apt-get install -y git) || \
     (apk add --no-cache git) || \
     (yum install -y git)
 
-# Install node and npm if not present
+RUN command -v curl >/dev/null 2>&1 || \
+    (apt-get update && apt-get install -y curl) || \
+    (apk add --no-cache curl) || \
+    (yum install -y curl)
+
+# Install ripgrep if not present
+RUN command -v rg >/dev/null 2>&1 || \
+    (apt-get update && apt-get install -y ripgrep) || \
+    (apk add --no-cache ripgrep) || \
+    (yum install -y ripgrep) || \
+    echo "Warning: ripgrep not available in package manager"
+
+# Install node and npm if not present (still needed for Amp)
 RUN command -v node >/dev/null 2>&1 || \
     (apt-get update && apt-get install -y nodejs npm) || \
     (apk add --no-cache nodejs npm) || \
     (yum install -y nodejs npm)
 
-# Install Claude Code
-RUN npm install -g @anthropic-ai/claude-code
+# Install Claude Code using official installer
+RUN curl -fsSL https://claude.ai/install.sh | bash
 
 # Install Amp
 RUN npm install -g @sourcegraph/amp@latest
@@ -133,13 +150,55 @@ type DockerfileData struct {
 	BeadsRustVersion    string
 }
 
+// getImageAge returns the age of a Docker image, or an error if the image doesn't exist
+func getImageAge(imageName string) (time.Duration, error) {
+	cmd := exec.Command("docker", "inspect", "--format", "{{json .Created}}", imageName)
+	output, err := cmd.Output()
+	if err != nil {
+		return 0, fmt.Errorf("image not found: %w", err)
+	}
+
+	var createdStr string
+	if err := json.Unmarshal(output, &createdStr); err != nil {
+		return 0, fmt.Errorf("failed to parse image creation time: %w", err)
+	}
+
+	created, err := time.Parse(time.RFC3339Nano, createdStr)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse timestamp: %w", err)
+	}
+
+	return time.Since(created), nil
+}
+
 // BuildImage builds the giverny Docker images using two separate Dockerfiles.
 // First it builds giverny-deps with all the dependencies (giverny binary, diffreviewer, beads_rust).
 // Then it builds giverny-main which uses the deps image and adds the base image components.
 // It creates a temporary directory, extracts embedded source code,
 // generates both Dockerfiles, builds both images, optionally streams output
 // to stdout based on showOutput, and cleans up.
-func BuildImage(baseImage string, showOutput bool, debug bool) error {
+//
+// If giverny-main:latest exists and is less than 24 hours old, the build is skipped
+// unless forceRebuild is true.
+func BuildImage(baseImage string, showOutput bool, forceRebuild bool, debug bool) error {
+	// Check if giverny-main image exists and is fresh enough
+	if !forceRebuild {
+		if age, err := getImageAge("giverny-main:latest"); err == nil {
+			if age < ImageMaxAge {
+				if debug {
+					fmt.Printf("Using existing giverny-main image (age: %s)\n", age.Round(time.Minute))
+				}
+				return nil
+			}
+			if debug {
+				fmt.Printf("Rebuilding giverny-main image (age: %s, max: %s)\n", age.Round(time.Minute), ImageMaxAge)
+			}
+		} else if debug {
+			fmt.Printf("Building giverny-main image (no existing image found)\n")
+		}
+	} else if debug {
+		fmt.Printf("Force rebuilding giverny-main image\n")
+	}
 	// Create temporary directory
 	tmpDir, err := os.MkdirTemp("", "giverny-build-*")
 	if err != nil {

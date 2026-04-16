@@ -21,6 +21,7 @@ type Config struct {
 	AgentArgs       string
 	Debug           bool
 	ShowBuildOutput bool
+	ForceRebuild    bool
 	ExistingBranch  bool
 	AllowDirty      bool
 	UseAmp          bool
@@ -116,7 +117,7 @@ func RunWithDeps(config Config, git gitops.GitOps, docker dockerops.DockerOps) e
 	}
 
 	// Build giverny Docker image
-	if err := docker.BuildImage(config.BaseImage, config.ShowBuildOutput, config.Debug); err != nil {
+	if err := docker.BuildImage(config.BaseImage, config.ShowBuildOutput, config.ForceRebuild, config.Debug); err != nil {
 		return fmt.Errorf("failed to build image: %w", err)
 	}
 
