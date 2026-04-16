@@ -97,10 +97,10 @@ func createTestCommand(validateOnly bool) *cobra.Command {
 	var testConfig Config
 
 	cmd := &cobra.Command{
-		Use:   "giverny [OPTIONS] TASK-ID [SLUG] [PROMPT]",
+		Use:   "giverny [OPTIONS] TASK-ID",
 		Short: "Containerized system for running Claude Code safely",
 		Long:  "Giverny creates isolated Docker environments where Claude Code can work on tasks without affecting the host system.",
-		Args:  cobra.RangeArgs(1, 3),
+		Args:  cobra.RangeArgs(1, 1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			testConfig.TaskID = args[0]
 
@@ -109,20 +109,14 @@ func createTestCommand(validateOnly bool) *cobra.Command {
 				return err
 			}
 
-			// Set slug and prompt based on number of arguments
-			switch len(args) {
-			case 1:
-				// Only TASK-ID provided
-				testConfig.Slug = ""
+			// Sanitize slug if provided
+			if testConfig.Slug != "" {
+				testConfig.Slug = sanitizeSlug(testConfig.Slug)
+			}
+
+			// Set default prompt if not provided
+			if testConfig.Prompt == "" {
 				testConfig.Prompt = "Please work on " + testConfig.TaskID + "."
-			case 2:
-				// TASK-ID and SLUG provided
-				testConfig.Slug = sanitizeSlug(args[1])
-				testConfig.Prompt = "Please work on " + testConfig.TaskID + "."
-			case 3:
-				// TASK-ID, SLUG, and PROMPT provided
-				testConfig.Slug = sanitizeSlug(args[1])
-				testConfig.Prompt = args[2]
 			}
 
 			// Validate innie-specific requirements
@@ -138,6 +132,8 @@ func createTestCommand(validateOnly bool) *cobra.Command {
 	}
 
 	// Define flags
+	cmd.Flags().StringVarP(&testConfig.Slug, "slug", "s", "", "Short description for branch name")
+	cmd.Flags().StringVarP(&testConfig.Prompt, "prompt", "p", "", "Prompt to pass to the agent")
 	cmd.Flags().StringVar(&testConfig.BaseImage, "base-image", "giverny:latest", "Docker base image")
 	cmd.Flags().StringVar(&testConfig.DockerArgs, "docker-args", "", "Additional docker run arguments")
 	cmd.Flags().BoolVar(&testConfig.Debug, "debug", false, "Enable debug output")
@@ -175,7 +171,7 @@ func TestParseArgs_DefaultPrompt(t *testing.T) {
 
 func TestParseArgs_WithSlug(t *testing.T) {
 	cmd := createTestCommand(true)
-	cmd.SetArgs([]string{"task-456", "add feature"})
+	cmd.SetArgs([]string{"--slug", "add feature", "task-456"})
 
 	err := cmd.Execute()
 	if err != nil {
@@ -200,7 +196,7 @@ func TestParseArgs_WithSlug(t *testing.T) {
 
 func TestParseArgs_WithSlugAndPrompt(t *testing.T) {
 	cmd := createTestCommand(true)
-	cmd.SetArgs([]string{"task-789", "fix-bug", "Custom prompt here"})
+	cmd.SetArgs([]string{"--slug", "fix-bug", "--prompt", "Custom prompt here", "task-789"})
 
 	err := cmd.Execute()
 	if err != nil {
@@ -217,6 +213,28 @@ func TestParseArgs_WithSlugAndPrompt(t *testing.T) {
 
 	if config.Prompt != "Custom prompt here" {
 		t.Errorf("expected Prompt 'Custom prompt here', got '%s'", config.Prompt)
+	}
+}
+
+func TestParseArgs_WithShortFlags(t *testing.T) {
+	cmd := createTestCommand(true)
+	cmd.SetArgs([]string{"-s", "my-feature", "-p", "Implement the feature", "task-abc"})
+
+	err := cmd.Execute()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if config.TaskID != "task-abc" {
+		t.Errorf("expected TaskID 'task-abc', got '%s'", config.TaskID)
+	}
+
+	if config.Slug != "my-feature" {
+		t.Errorf("expected Slug 'my-feature', got '%s'", config.Slug)
+	}
+
+	if config.Prompt != "Implement the feature" {
+		t.Errorf("expected Prompt 'Implement the feature', got '%s'", config.Prompt)
 	}
 }
 

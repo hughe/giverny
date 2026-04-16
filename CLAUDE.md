@@ -37,13 +37,13 @@ The system has two components that communicate via git:
 ## CLI Usage
 
 ```
-giverny TASK-ID [PROMPT]
+giverny [OPTIONS] TASK-ID
 ```
 
+- `-s, --slug SLUG`: Short description for branch name (e.g., 'fix-login-bug')
+- `-p, --prompt PROMPT`: Prompt to pass to the agent
 - `--base-image BASE-IMAGE`: Docker base image (default: `giverny:latest`)
 - `--docker-args DOCKER-ARGS`: Additional docker run arguments
-- `--innie`: Flag indicating running inside container
-- `--git-server-port XXXX`: Port for git daemon connection
 - `--debug`: Enable debug output
 - `--show-build-output`: Show docker build output
 

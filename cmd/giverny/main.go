@@ -82,10 +82,10 @@ func getVersion() string {
 
 func main() {
 	rootCmd := &cobra.Command{
-		Use:   "giverny [OPTIONS] TASK-ID [SLUG] [PROMPT]",
+		Use:   "giverny [OPTIONS] TASK-ID",
 		Short: "Containerized system for running Claude Code safely",
 		Long:  "Giverny creates isolated Docker environments where Claude Code can work on tasks without affecting the host system.",
-		Args:  cobra.RangeArgs(0, 3),
+		Args:  cobra.RangeArgs(0, 1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Handle --version flag
 			if showVersion {
@@ -113,20 +113,14 @@ func main() {
 				return fmt.Errorf("invalid TASK-ID: %w", err)
 			}
 
-			// Set slug and prompt based on number of arguments
-			switch len(args) {
-			case 1:
-				// Only TASK-ID provided
-				config.Slug = ""
+			// Sanitize slug if provided
+			if config.Slug != "" {
+				config.Slug = sanitizeSlug(config.Slug)
+			}
+
+			// Set default prompt if not provided
+			if config.Prompt == "" {
 				config.Prompt = fmt.Sprintf("Please work on %s.", config.TaskID)
-			case 2:
-				// TASK-ID and SLUG provided
-				config.Slug = sanitizeSlug(args[1])
-				config.Prompt = fmt.Sprintf("Please work on %s.", config.TaskID)
-			case 3:
-				// TASK-ID, SLUG, and PROMPT provided
-				config.Slug = sanitizeSlug(args[1])
-				config.Prompt = args[2]
 			}
 
 			// Validate innie-specific requirements
@@ -166,6 +160,8 @@ func main() {
 
 	// Define flags
 	rootCmd.Flags().BoolVar(&showVersion, "version", false, "Show version information")
+	rootCmd.Flags().StringVarP(&config.Slug, "slug", "s", "", "Short description for branch name (e.g., 'fix-login-bug')")
+	rootCmd.Flags().StringVarP(&config.Prompt, "prompt", "p", "", "Prompt to pass to the agent")
 	rootCmd.Flags().StringVar(&config.BaseImage, "base-image", "giverny:latest", "Docker base image")
 	rootCmd.Flags().StringVar(&config.DockerArgs, "docker-args", "", "Additional docker run arguments")
 	rootCmd.Flags().StringVar(&config.AgentArgs, "agent-args", "", "Additional arguments to pass to the agent (claude code)")
