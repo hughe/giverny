@@ -87,9 +87,14 @@ func RunContainer(taskID, slug, prompt string, gitPort int, dockerArgs, agentArg
 		args = append(args, fmt.Sprintf("--agent-args=%s", agentArgs))
 	}
 
-	// Add positional arguments: taskID, slug, prompt
-	// Always pass all three to avoid the prompt being parsed as a slug
-	args = append(args, taskID, slug, prompt)
+	// Pass slug and prompt via flags, then TASK-ID as positional argument
+	if slug != "" {
+		args = append(args, "--slug", slug)
+	}
+	if prompt != "" {
+		args = append(args, "--prompt", prompt)
+	}
+	args = append(args, taskID)
 
 	cmd := exec.Command("docker", args...)
 	cmd.Stdout = os.Stdout
