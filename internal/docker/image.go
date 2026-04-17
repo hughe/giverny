@@ -8,9 +8,27 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"text/template"
 	"time"
 )
+
+// MainImageName returns the tag for the giverny-main image derived from the
+// given base image. We embed the base image name so that runs against
+// different base images don't collide on a single shared "giverny-main:latest"
+// tag. e.g. "alpine:latest" -> "alpine-giverny-main:latest",
+// "gcr.io/foo/bar:dev" -> "gcr.io-foo-bar-giverny-main:dev".
+func MainImageName(baseImage string) string {
+	name, tag := baseImage, "latest"
+	// Split on the last colon to separate tag (avoid splitting registry ports
+	// like "registry:5000/foo"; if there's a slash after the colon it's a
+	// port, not a tag).
+	if i := strings.LastIndex(baseImage, ":"); i != -1 && !strings.Contains(baseImage[i:], "/") {
+		name, tag = baseImage[:i], baseImage[i+1:]
+	}
+	name = strings.ReplaceAll(name, "/", "-")
+	return fmt.Sprintf("%s-giverny-main:%s", name, tag)
+}
 
 // EmbeddedSource holds the embedded source code for building the image.
 // This is set by the main package which has access to the module root.
@@ -185,23 +203,24 @@ func getImageAge(imageName string) (time.Duration, error) {
 // If giverny-main:latest exists and is less than 24 hours old, the build is skipped
 // unless forceRebuild is true.
 func BuildImage(baseImage string, showOutput bool, forceRebuild bool, debug bool) error {
+	mainImage := MainImageName(baseImage)
 	// Check if giverny-main image exists and is fresh enough
 	if !forceRebuild {
-		if age, err := getImageAge("giverny-main:latest"); err == nil {
+		if age, err := getImageAge(mainImage); err == nil {
 			if age < ImageMaxAge {
 				if debug {
-					fmt.Printf("Using existing giverny-main image (age: %s)\n", age.Round(time.Minute))
+					fmt.Printf("Using existing %s image (age: %s)\n", mainImage, age.Round(time.Minute))
 				}
 				return nil
 			}
 			if debug {
-				fmt.Printf("Rebuilding giverny-main image (age: %s, max: %s)\n", age.Round(time.Minute), ImageMaxAge)
+				fmt.Printf("Rebuilding %s image (age: %s, max: %s)\n", mainImage, age.Round(time.Minute), ImageMaxAge)
 			}
 		} else if debug {
-			fmt.Printf("Building giverny-main image (no existing image found)\n")
+			fmt.Printf("Building %s image (no existing image found)\n", mainImage)
 		}
 	} else if debug {
-		fmt.Printf("Force rebuilding giverny-main image\n")
+		fmt.Printf("Force rebuilding %s image\n", mainImage)
 	}
 	// Create temporary directory
 	tmpDir, err := os.MkdirTemp("", "giverny-build-*")
@@ -271,7 +290,7 @@ func BuildImage(baseImage string, showOutput bool, forceRebuild bool, debug bool
 	// Build giverny-main image
 	mainBuildCmd := exec.Command("docker", "build",
 		"-f", dockerfileMainPath,
-		"-t", "giverny-main:latest",
+		"-t", mainImage,
 		tmpDir,
 	)
 
@@ -282,11 +301,11 @@ func BuildImage(baseImage string, showOutput bool, forceRebuild bool, debug bool
 	}
 
 	if err := mainBuildCmd.Run(); err != nil {
-		return fmt.Errorf("docker build failed for giverny-main: %w", err)
+		return fmt.Errorf("docker build failed for %s: %w", mainImage, err)
 	}
 
 	if debug {
-		fmt.Println("Successfully built giverny-main:latest")
+		fmt.Printf("Successfully built %s\n", mainImage)
 	}
 	return nil
 }

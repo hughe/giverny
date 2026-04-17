@@ -157,7 +157,7 @@ func RunWithDeps(config Config, git gitops.GitOps, docker dockerops.DockerOps) e
 	}
 
 	// Run the container with Innie
-	exitCode, err := docker.RunContainer(config.TaskID, config.Slug, config.Prompt, gitPort, config.DockerArgs, config.AgentArgs, config.Debug, config.UseAmp)
+	exitCode, err := docker.RunContainer(config.TaskID, config.Slug, config.Prompt, config.BaseImage, gitPort, config.DockerArgs, config.AgentArgs, config.Debug, config.UseAmp)
 
 	// Post-container cleanup
 

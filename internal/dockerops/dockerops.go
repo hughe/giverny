@@ -9,7 +9,7 @@ type DockerOps interface {
 	BuildImage(baseImage string, showOutput bool, forceRebuild bool, debug bool) error
 
 	// RunContainer runs the giverny container and returns the exit code
-	RunContainer(taskID, slug, prompt string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error)
+	RunContainer(taskID, slug, prompt, baseImage string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error)
 
 	// RemoveContainer removes a Docker container by name
 	RemoveContainer(containerName string) error
@@ -29,8 +29,8 @@ func (d *RealDockerOps) BuildImage(baseImage string, showOutput bool, forceRebui
 }
 
 // RunContainer runs the giverny container
-func (d *RealDockerOps) RunContainer(taskID, slug, prompt string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error) {
-	return docker.RunContainer(taskID, slug, prompt, gitPort, dockerArgs, agentArgs, debug, useAmp)
+func (d *RealDockerOps) RunContainer(taskID, slug, prompt, baseImage string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error) {
+	return docker.RunContainer(taskID, slug, prompt, baseImage, gitPort, dockerArgs, agentArgs, debug, useAmp)
 }
 
 // RemoveContainer removes a Docker container

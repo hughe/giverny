@@ -13,7 +13,7 @@ import (
 
 // RunContainer starts the giverny-main container with Innie
 // Returns the exit code of the container
-func RunContainer(taskID, slug, prompt string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error) {
+func RunContainer(taskID, slug, prompt, baseImage string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error) {
 	// Generate a container name based on task ID and slug
 	var containerName string
 	if slug != "" {
@@ -67,7 +67,7 @@ func RunContainer(taskID, slug, prompt string, gitPort int, dockerArgs, agentArg
 	}
 
 	// Specify the image
-	args = append(args, "giverny-main:latest")
+	args = append(args, MainImageName(baseImage))
 
 	// Specify the command to run inside the container
 	args = append(args, "giverny", "--innie", fmt.Sprintf("--git-server-port=%d", gitPort))

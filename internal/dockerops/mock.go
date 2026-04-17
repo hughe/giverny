@@ -4,7 +4,7 @@ package dockerops
 type MockDockerOps struct {
 	// Function stubs that can be set in tests
 	BuildImageFunc      func(baseImage string, showOutput bool, forceRebuild bool, debug bool) error
-	RunContainerFunc    func(taskID, slug, prompt string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error)
+	RunContainerFunc    func(taskID, slug, prompt, baseImage string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error)
 	RemoveContainerFunc func(containerName string) error
 }
 
@@ -14,7 +14,7 @@ func NewMockDockerOps() *MockDockerOps {
 		BuildImageFunc: func(baseImage string, showOutput bool, forceRebuild bool, debug bool) error {
 			return nil
 		},
-		RunContainerFunc: func(taskID, slug, prompt string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error) {
+		RunContainerFunc: func(taskID, slug, prompt, baseImage string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error) {
 			return 0, nil
 		},
 		RemoveContainerFunc: func(containerName string) error {
@@ -29,8 +29,8 @@ func (m *MockDockerOps) BuildImage(baseImage string, showOutput bool, forceRebui
 }
 
 // RunContainer calls the mock function
-func (m *MockDockerOps) RunContainer(taskID, slug, prompt string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error) {
-	return m.RunContainerFunc(taskID, slug, prompt, gitPort, dockerArgs, agentArgs, debug, useAmp)
+func (m *MockDockerOps) RunContainer(taskID, slug, prompt, baseImage string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error) {
+	return m.RunContainerFunc(taskID, slug, prompt, baseImage, gitPort, dockerArgs, agentArgs, debug, useAmp)
 }
 
 // RemoveContainer calls the mock function
