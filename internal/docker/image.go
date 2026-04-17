@@ -143,11 +143,10 @@ RUN command -v node >/dev/null 2>&1 || \
     (yum install -y nodejs npm)
 
 # Install Claude Code using official installer.
-# The installer drops the binary in ~/.local/bin, which isn't in $PATH when
-# giverny --innie execs claude, so symlink it into /usr/local/bin.
-RUN curl -fsSL https://claude.ai/install.sh | bash && \
-    ln -s /root/.local/bin/claude /usr/local/bin/claude && \
-    claude --version
+# The installer drops the binary in ~/.local/bin; add that to PATH.
+RUN curl -fsSL https://claude.ai/install.sh | bash
+ENV PATH="/root/.local/bin:${PATH}"
+RUN claude --version
 
 # Install Amp
 RUN npm install -g @sourcegraph/amp@latest
