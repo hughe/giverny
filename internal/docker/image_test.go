@@ -100,7 +100,7 @@ func TestGenerateDockerfile(t *testing.T) {
 			"COPY --from=giverny-deps:latest /output/giverny",
 			"COPY --from=giverny-deps:latest /output/diffreviewer",
 			"COPY --from=giverny-deps:latest /output/br",
-			"npm install -g @anthropic-ai/claude-code",
+			"curl -fsSL https://claude.ai/install.sh | bash",
 			"npm install -g @sourcegraph/amp",
 		}
 
@@ -164,19 +164,19 @@ func TestBuildImage_IntegrationTest(t *testing.T) {
 	EmbeddedSource = giverny.Source
 
 	// Build the image
-	err := BuildImage("alpine:latest", true, false)
+	err := BuildImage("alpine:latest", true, false, false)
 	if err != nil {
 		t.Fatalf("BuildImage failed: %v", err)
 	}
 
 	// Verify the image was created
-	cmd := exec.Command("docker", "image", "inspect", "giverny-main:latest")
+	cmd := exec.Command("docker", "image", "inspect", "alpine-giverny-main:latest")
 	if err := cmd.Run(); err != nil {
-		t.Fatalf("Image giverny-main:latest was not created: %v", err)
+		t.Fatalf("Image alpine-giverny-main:latest was not created: %v", err)
 	}
 
 	// Verify diffreviewer binary exists in the image
-	cmd = exec.Command("docker", "run", "--rm", "giverny-main:latest", "which", "diffreviewer")
+	cmd = exec.Command("docker", "run", "--rm", "alpine-giverny-main:latest", "which", "diffreviewer")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("diffreviewer not found in image: %v, output: %s", err, output)
@@ -187,7 +187,7 @@ func TestBuildImage_IntegrationTest(t *testing.T) {
 	}
 
 	// Verify br binary exists in the image
-	cmd = exec.Command("docker", "run", "--rm", "giverny-main:latest", "which", "br")
+	cmd = exec.Command("docker", "run", "--rm", "alpine-giverny-main:latest", "which", "br")
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("br not found in image: %v, output: %s", err, output)
@@ -199,5 +199,5 @@ func TestBuildImage_IntegrationTest(t *testing.T) {
 
 	// Clean up - remove the test images
 	exec.Command("docker", "rmi", "giverny-deps:latest").Run()
-	exec.Command("docker", "rmi", "giverny-main:latest").Run()
+	exec.Command("docker", "rmi", "alpine-giverny-main:latest").Run()
 }

@@ -152,7 +152,7 @@ func TestRunWithDeps_ChecksDirtyWorkspace(t *testing.T) {
 		}
 
 		mockDocker := dockerops.NewMockDockerOps()
-		mockDocker.BuildImageFunc = func(baseImage string, showOutput bool, debug bool) error {
+		mockDocker.BuildImageFunc = func(baseImage string, showOutput bool, forceRebuild bool, debug bool) error {
 			imageBuilt = true
 			return nil
 		}
@@ -213,7 +213,7 @@ func TestRunWithDeps_ChecksDirtyWorkspace(t *testing.T) {
 		}
 
 		mockDocker := dockerops.NewMockDockerOps()
-		mockDocker.BuildImageFunc = func(baseImage string, showOutput bool, debug bool) error {
+		mockDocker.BuildImageFunc = func(baseImage string, showOutput bool, forceRebuild bool, debug bool) error {
 			return nil
 		}
 		mockDocker.RunContainerFunc = func(taskID, slug, prompt, baseImage string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error) {
@@ -342,7 +342,7 @@ func TestRunWithDeps_HandlesDockerErrors(t *testing.T) {
 		}
 
 		mockDocker := dockerops.NewMockDockerOps()
-		mockDocker.BuildImageFunc = func(baseImage string, showOutput bool, debug bool) error {
+		mockDocker.BuildImageFunc = func(baseImage string, showOutput bool, forceRebuild bool, debug bool) error {
 			return errors.New("docker build failed")
 		}
 
@@ -375,7 +375,7 @@ func TestRunWithDeps_HandlesDockerErrors(t *testing.T) {
 		}
 
 		mockDocker := dockerops.NewMockDockerOps()
-		mockDocker.BuildImageFunc = func(baseImage string, showOutput bool, debug bool) error {
+		mockDocker.BuildImageFunc = func(baseImage string, showOutput bool, forceRebuild bool, debug bool) error {
 			return nil
 		}
 		mockDocker.RunContainerFunc = func(taskID, slug, prompt, baseImage string, gitPort int, dockerArgs, agentArgs string, debug, useAmp bool) (int, error) {
@@ -451,7 +451,7 @@ func TestRunWithDeps_SuccessfulFlow(t *testing.T) {
 	}
 
 	mockDocker := dockerops.NewMockDockerOps()
-	mockDocker.BuildImageFunc = func(baseImage string, showOutput bool, debug bool) error {
+	mockDocker.BuildImageFunc = func(baseImage string, showOutput bool, forceRebuild bool, debug bool) error {
 		callSequence = append(callSequence, "BuildImage")
 		if baseImage != "alpine:latest" {
 			return fmt.Errorf("unexpected base image: %s", baseImage)
